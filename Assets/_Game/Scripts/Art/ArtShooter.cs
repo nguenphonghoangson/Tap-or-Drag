@@ -9,7 +9,7 @@ namespace TapOrDrag
         public Sprite CatDrone, CatDiver, CatSaucer, CatBoss;
         public Sprite PlayerPellet, EnemyOrb, PowerCapsule, HeartPickup;
         public Sprite IconHeart, IconHeartEmpty;
-        public Sprite IconBomb, IconMagnet, IconRapid, IconWingman, IconShieldItem, IconLucky, IconWarp, IconGold, ShipLaser;
+        public Sprite IconPaw, IconBomb, IconMagnet, IconRapid, IconWingman, IconShieldItem, IconLucky, IconWarp, IconGold, ShipLaser;
         public static readonly Color32 EnemyBulletColor = Pal.Hex("ff5f8f");
         public static readonly Color32 PelletColor = Pal.Hex("8ff6ff");
 
@@ -86,6 +86,9 @@ namespace TapOrDrag
             IconWarp = OutlinedPalette(new[] { "ppppp", ".ppp.", "..p..", ".ppp.", "ppppp" }, new Dictionary<char, Color32> { { 'p', PortalMain } });
             IconGold = OutlinedPalette(new[] { ".yyy.", "yyYyy", "yYyyy", "yyyyy", ".yyy." },
                 new Dictionary<char, Color32> { { 'y', Pal.Gold }, { 'Y', Pal.White } });
+
+            IconPaw = OutlinedPalette(new[] { ".o.o.o.", ".o.o.o.", ".......", "..ooo..", ".ooooo.", ".ooooo.", "..o.o.." },
+                new Dictionary<char, Color32> { { 'o', Pal.Orange } });
 
             // ROBO mega laser: 16x7 tile, drawn tiled and rotated to point up.
             var laser = new PixelCanvas(16, 7);

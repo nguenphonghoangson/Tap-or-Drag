@@ -325,7 +325,7 @@ namespace TapOrDrag
             {
                 case GameState.Ready:
                     if (hud.HangarOpen) break;
-                    if (mode == GameMode.Shooter) StartShooter();
+                    if (ShooterMode) StartShooter();
                     else StartRun();
                     break;
                 case GameState.Playing:
@@ -908,7 +908,7 @@ namespace TapOrDrag
             var def = SkinDef.All[skinIndex];
             bool locked = !IsSkinUnlocked(skinIndex);
             bird.ApplySkin(art.Skins[skinIndex], locked);
-            bool shooterMode = mode == GameMode.Shooter;
+            bool shooterMode = ShooterMode;
             bird.SetShield(!shooterMode && def.Skill == SkillKind.Shield && !locked); // preview the bubble on the title screen
             // DOG BLAST shows the ship skill instead of the flappy skill.
             string skillText = shooterMode ? def.ShipSkillText : def.SkillText;

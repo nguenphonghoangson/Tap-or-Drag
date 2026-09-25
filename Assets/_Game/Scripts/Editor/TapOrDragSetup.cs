@@ -61,6 +61,7 @@ namespace TapOrDrag.EditorTools
             ShipUpgrades.ResetAll();
             Inventory.ResetAll();
             PlayerPrefs.DeleteKey("TapOrDrag.BestShooter");
+            PlayerPrefs.DeleteKey("TapOrDrag.BestCores");
             PlayerPrefs.Save();
             Debug.Log("[TapOrDrag] Progress reset (best score, coins, owned skins, missions, tutorial).");
         }

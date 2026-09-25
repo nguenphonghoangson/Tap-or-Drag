@@ -17,7 +17,7 @@ namespace TapOrDrag
     ///  - Permanent hangar upgrades (ShipUpgrades) applied at the start of each run.
     /// Everything is pooled SpriteRenderers under one root that is hidden outside the mode.
     /// </summary>
-    public class ShooterGame : MonoBehaviour
+    public partial class ShooterGame : MonoBehaviour
     {
         enum EnemyKind { Drone, Saucer, Diver, Rock, Boss }
         enum BossKind { Mothership, LaserCat, YarnKing }
@@ -148,7 +148,7 @@ namespace TapOrDrag
 
         // ---------------------------------------------------------------- lifecycle
 
-        public void Begin(SkinDef ship)
+        public void Begin(SkinDef ship, bool cores = false)
         {
             Running = true;
             dying = false;
@@ -200,6 +200,8 @@ namespace TapOrDrag
             hud.SetSkillCharge(0f, false, skillShort);
             hud.ShowBossBar(false, 0f);
             hud.SetScore(0, 1, false);
+            coreMode = cores;
+            BeginCores();
             if (luckyBone) hud.Toast("LUCKY BONE X2", Pal.Gold);
             UpdateBuffIcons();
         }
@@ -221,6 +223,7 @@ namespace TapOrDrag
             foreach (var p in pickups) { p.Alive = false; p.R.enabled = false; }
             foreach (var st in strikes) { st.Alive = false; st.R.enabled = false; }
             if (megaLaser != null) megaLaser.enabled = shockwave.enabled = wingmanLeft.enabled = wingmanRight.enabled = false;
+            HideCoreVisuals();
         }
 
         int TotalBombs => bombs + Inventory.Count(ItemKind.Bomb);
@@ -243,6 +246,11 @@ namespace TapOrDrag
                 }
                 return;
             }
+            if (choosing)
+            {
+                TickChoosing();
+                return;
+            }
 
             if (Input.GetKeyDown(KeyCode.E)) ActivateSkill();
             if (Input.GetKeyDown(KeyCode.Q)) UseBomb();
@@ -251,6 +259,7 @@ namespace TapOrDrag
             TickShip(dt);
             TickFire(dt);
             TickSkillEffects(dt);
+            TickCores(dt);
             TickSpawning(dt);
             TickShots(dt, enemyDt);
             TickEnemies(enemyDt);
@@ -476,7 +485,7 @@ namespace TapOrDrag
 
         public void ActivateSkill()
         {
-            if (!Running || dying || skillCharge < 1f) return;
+            if (!Running || dying || choosing || skillCharge < 1f) return;
             skillCharge = 0f;
             hud.SetSkillCharge(0f, false, skillShort);
             hud.Flash(Color.white, 0.35f);
@@ -519,7 +528,7 @@ namespace TapOrDrag
 
         public void UseBomb()
         {
-            if (!Running || dying) return;
+            if (!Running || dying || choosing) return;
             if (bombs > 0) bombs--;
             else if (!Inventory.TryUse(ItemKind.Bomb))
             {
@@ -559,7 +568,7 @@ namespace TapOrDrag
             }
 
             // Wingmen: two drones beside the ship firing straight up.
-            bool wings = wingmanTimer > 0f;
+            bool wings = wingmanTimer > 0f || coreWingmen;
             wingmanLeft.enabled = wingmanRight.enabled = wings;
             if (wings)
             {
@@ -598,20 +607,30 @@ namespace TapOrDrag
 
         void TickSpawning(float dt)
         {
+            if (coreMode)
+            {
+                TickWaves(dt);
+                return;
+            }
             bossTimer -= dt;
             if (boss == null && bossTimer <= 0f)
             {
                 SpawnBoss();
                 return;
             }
+            TickSpawnTimer(dt, time);
+        }
 
-            float interval = Mathf.Max(cfg.shooterSpawnIntervalMin, cfg.shooterSpawnIntervalStart - time * cfg.shooterSpawnRamp);
+        /// <summary>Regular enemy mix; <paramref name="difficulty"/> is seconds of ramp (run time, or a wave-based value in CORE RUN).</summary>
+        void TickSpawnTimer(float dt, float difficulty)
+        {
+            float interval = Mathf.Max(cfg.shooterSpawnIntervalMin, cfg.shooterSpawnIntervalStart - difficulty * cfg.shooterSpawnRamp);
             if (boss != null) interval *= 2.5f;
             spawnTimer -= dt;
             if (spawnTimer > 0f) return;
             spawnTimer = interval;
 
-            float hpScale = 1f + time / 90f;
+            float hpScale = 1f + difficulty / 90f;
             float top = World.Top + 1f;
             if (boss != null)
             {
@@ -990,7 +1009,7 @@ namespace TapOrDrag
 
         void TickPickups(float dt)
         {
-            float pull = goldTimer > 0f || magnetTimer > 0f ? 99f : magnetRange;
+            float pull = goldTimer > 0f || magnetTimer > 0f || coreMagnet ? 99f : magnetRange;
             foreach (var p in pickups)
             {
                 if (!p.Alive) continue;
@@ -1103,8 +1122,12 @@ namespace TapOrDrag
                 foreach (var s in enemyShots) Kill(s);
                 foreach (var st in strikes) { st.Alive = false; st.R.enabled = false; }
                 for (int i = 0; i < 30; i++) Drop(PickupKind.Bone, e.P + Random.insideUnitCircle * 1.5f);
-                Drop(RandomWeaponCapsule(), e.P + Vector2.left * 0.7f);
-                Drop(RandomSupport(), e.P + Vector2.right * 0.7f);
+                if (!coreMode)
+                {
+                    Drop(RandomWeaponCapsule(), e.P + Vector2.left * 0.7f);
+                    Drop(RandomSupport(), e.P + Vector2.right * 0.7f);
+                }
+                else OnCoreBossDefeated();
                 Drop(PickupKind.Heart, e.P + Vector2.down * 0.6f);
                 fx.Float("+" + points, Pal.Gold, e.P, 1.8f);
                 return;
@@ -1118,7 +1141,11 @@ namespace TapOrDrag
             for (int i = 0; i < boneDrops; i++) Drop(PickupKind.Bone, e.P + Random.insideUnitCircle * 0.4f);
 
             float roll = Random.value;
-            if (power < 4 && roll < cfg.shooterPowerDropChance) Drop(PickupKind.Power, e.P);
+            if (coreMode)
+            {
+                if (hearts < maxHearts && roll < cfg.shooterHeartDropChance * 0.6f) Drop(PickupKind.Heart, e.P);
+            }
+            else if (power < 4 && roll < cfg.shooterPowerDropChance) Drop(PickupKind.Power, e.P);
             else if ((roll -= cfg.shooterPowerDropChance) < 0.04f) Drop(RandomWeaponCapsule(), e.P);
             else if ((roll -= 0.04f) < 0.04f) Drop(RandomSupport(), e.P);
             else if (hearts < maxHearts && (roll -= 0.04f) < cfg.shooterHeartDropChance) Drop(PickupKind.Heart, e.P);
@@ -1186,6 +1213,7 @@ namespace TapOrDrag
             {
                 case PickupKind.Bone:
                     int amount = (luckyBone ? 2 : 1) * (goldTimer > 0f ? 2 : 1);
+                    amount += BonusBones(amount);
                     for (int i = 0; i < amount; i++)
                     {
                         bones++;
@@ -1278,6 +1306,7 @@ namespace TapOrDrag
             if (hearts > 0)
             {
                 invulnerable = cfg.shooterInvulnerable;
+                if (coreMode) return; // the core build is kept through hits
                 power = Mathf.Max(1, power - 1);
                 if (weapon != Weapon.Blaster)
                 {

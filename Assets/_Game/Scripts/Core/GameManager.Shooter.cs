@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace TapOrDrag
 {
-    public enum GameMode { Flappy, Shooter }
+    public enum GameMode { Flappy, Shooter, Cores }
 
     /// <summary>
     /// Mode selection and the DOG BLAST shooter hand-off. The shooter owns its own world (ShooterGame); this file
@@ -12,10 +12,13 @@ namespace TapOrDrag
     {
         const string ModeKey = "TapOrDrag.Mode";
         const string BestShooterKey = "TapOrDrag.BestShooter";
+        const string BestCoresKey = "TapOrDrag.BestCores";
 
         ShooterGame shooter;
         GameMode mode;
-        int bestShooter;
+        int bestShooter, bestCores;
+        bool ShooterMode => mode != GameMode.Flappy; // DOG BLAST or CORE RUN
+        int ShooterBest => mode == GameMode.Cores ? bestCores : bestShooter;
         bool shooterGameOver; // Dead state reached from the shooter: skip the flappy death animation
         SpriteRenderer jetPreview; // title screen stand-in for the dog while DOG BLAST is selected
 
@@ -32,8 +35,9 @@ namespace TapOrDrag
                 hud.SetCoins(Economy.Coins, true);
             };
             shooter.EnemyKilled += () => missions.Add(MissionType.StompEnemies);
-            mode = (GameMode)Mathf.Clamp(PlayerPrefs.GetInt(ModeKey, 0), 0, 1);
+            mode = (GameMode)Mathf.Clamp(PlayerPrefs.GetInt(ModeKey, 0), 0, 2);
             bestShooter = PlayerPrefs.GetInt(BestShooterKey, 0);
+            bestCores = PlayerPrefs.GetInt(BestCoresKey, 0);
             jetPreview = new GameObject("JetPreview").AddComponent<SpriteRenderer>();
             jetPreview.transform.SetParent(transform, false);
             jetPreview.sortingOrder = 10;
@@ -57,7 +61,7 @@ namespace TapOrDrag
 
         void SetHangar(bool open)
         {
-            if (open && (state != GameState.Ready || mode != GameMode.Shooter)) return;
+            if (open && (state != GameState.Ready || !ShooterMode)) return;
             hud.ShowHangar(open, Economy.Coins);
             sound.Click();
         }
@@ -91,7 +95,7 @@ namespace TapOrDrag
         void StepMode(int direction)
         {
             if (state != GameState.Ready || hud.HangarOpen) return;
-            mode = mode == GameMode.Flappy ? GameMode.Shooter : GameMode.Flappy;
+            mode = (GameMode)(((int)mode + (direction < 0 ? 2 : 1)) % 3);
             PlayerPrefs.SetInt(ModeKey, (int)mode);
             PlayerPrefs.Save();
             ApplyModeUi();
@@ -101,9 +105,9 @@ namespace TapOrDrag
 
         void ApplyModeUi()
         {
-            bool shooterMode = mode == GameMode.Shooter;
-            hud.SetMode(shooterMode);
-            hud.SetBest(shooterMode ? bestShooter : best, false);
+            bool shooterMode = ShooterMode;
+            hud.SetMode((int)mode);
+            hud.SetBest(shooterMode ? ShooterBest : best, false);
             hud.SetReadyPanel(runsPlayed >= cfg.missionsAfterRuns, shooterMode);
             bird.gameObject.SetActive(!shooterMode);
             ApplySkin(); // skill line switches between flappy and ship skills
@@ -112,12 +116,13 @@ namespace TapOrDrag
         /// <summary>Title screen: the idle dog is shown in its fighter jet when DOG BLAST is selected.</summary>
         void TickJetPreview()
         {
-            bool show = state == GameState.Ready && mode == GameMode.Shooter;
+            if (state == GameState.Ready) hud.SetSelectorAnchor(new Vector3(ShooterMode ? 0f : World.BirdX, ReadyBirdY, 0f));
+            bool show = state == GameState.Ready && ShooterMode;
             jetPreview.enabled = show;
             if (!show) return;
             jetPreview.sprite = art.Jets[skinIndex][0];
             jetPreview.color = IsSkinUnlocked(skinIndex) ? Color.white : new Color(0.12f, 0.07f, 0.2f);
-            jetPreview.transform.position = bird.transform.position;
+            jetPreview.transform.position = new Vector3(0f, bird.transform.position.y, 0f); // centred: the jet is the hero here
         }
 
         /// <summary>Called from EnterReady: leave the shooter world and bring the flappy scenery back.</summary>
@@ -146,18 +151,20 @@ namespace TapOrDrag
             background.gameObject.SetActive(false);
             hud.ShowPlaying();
             if (hud.HangarOpen) hud.ShowHangar(false, Economy.Coins);
-            shooter.Begin(SkinDef.All[equippedSkin]);
+            shooter.Begin(SkinDef.All[equippedSkin], mode == GameMode.Cores);
             sound.RunStart();
         }
 
         void OnShooterFinished(int finalScore, int bonesCollected)
         {
             shooter.End();
-            bool newBest = finalScore > bestShooter;
+            bool cores = mode == GameMode.Cores;
+            bool newBest = finalScore > ShooterBest;
             if (newBest)
             {
-                bestShooter = finalScore;
-                PlayerPrefs.SetInt(BestShooterKey, bestShooter);
+                if (cores) bestCores = finalScore;
+                else bestShooter = finalScore;
+                PlayerPrefs.SetInt(cores ? BestCoresKey : BestShooterKey, finalScore);
             }
             state = GameState.Dead;
             shooterGameOver = true;
@@ -166,8 +173,8 @@ namespace TapOrDrag
             retryAt = 0.6f;
             runsPlayed++;
             PlayerPrefs.SetInt(RunsKey, runsPlayed);
-            hud.SetBest(bestShooter, newBest);
-            hud.ShowGameOver(finalScore, bestShooter, newBest, bonesCollected);
+            hud.SetBest(ShooterBest, newBest);
+            hud.ShowGameOver(finalScore, ShooterBest, newBest, bonesCollected);
             if (newBest) sound.NewBest();
             else sound.GameOver();
             missions.Record(MissionType.ScoreInRun, finalScore);
@@ -176,7 +183,7 @@ namespace TapOrDrag
             PlaytestStats.Log(new PlaytestStats.Run
             {
                 Skin = SkinDef.All[equippedSkin].Name,
-                DeathCause = "SHOOTER",
+                DeathCause = cores ? "CORES WAVE " + shooter.Wave : "SHOOTER",
                 Duration = Time.time - runStartTime,
                 Score = finalScore,
                 Coins = bonesCollected,

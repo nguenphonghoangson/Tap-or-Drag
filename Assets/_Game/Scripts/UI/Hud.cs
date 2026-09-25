@@ -340,6 +340,7 @@ namespace TapOrDrag
             TickMeta(dt);
             TickShooterUi(dt);
             TickHangar(dt);
+            TickCoreChoice(dt);
         }
 
         void LateUpdate()

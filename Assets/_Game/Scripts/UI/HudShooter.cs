@@ -14,7 +14,7 @@ namespace TapOrDrag
         static readonly Vector2 BottomLeft = new Vector2(0f, 0f);
         static readonly Vector2 BottomRight = new Vector2(1f, 0f);
 
-        PixelText titleTop, titleMid, titleBottom, weaponText, bossLabel, skillLabel, skillReadyText, bombCount, warningText, warningName;
+        PixelText titleTop, titleMid, titleBottom, shooterPanelLine, waveText, weaponText, bossLabel, skillLabel, skillReadyText, bombCount, warningText, warningName;
         RectTransform modePrev, modeNext, hangarButton, skillButton, bombButton;
         Image shooterPanel, bossBack, bossFill, bossPhaseTick, skillFill, bombIcon;
         readonly Image[] heartIcons = new Image[MaxHeartIcons];
@@ -38,7 +38,7 @@ namespace TapOrDrag
             shooterPanel.type = Image.Type.Sliced;
             shooterPanel.rectTransform.sizeDelta = new Vector2(300f, 136f);
             PixelText.Create(shooterPanel.transform, "Move", "DRAG TO MOVE", Pal.OrangeLight, 3, Top, Top, new Vector2(0f, -18f));
-            PixelText.Create(shooterPanel.transform, "Fire", "AUTO FIRE - STOP THE CATS", Art.PelletColor, 2, Top, Top, new Vector2(0f, -50f));
+            shooterPanelLine = PixelText.Create(shooterPanel.transform, "Fire", "AUTO FIRE - STOP THE CATS", Art.PelletColor, 2, Top, Top, new Vector2(0f, -50f));
             hangarButton = NewButton(shooterPanel.transform, "Hangar", BottomMid, new Vector2(0f, 36f), new Vector2(200f, 46f), () => HangarOpenRequested?.Invoke());
             AddPanel(hangarButton);
             PixelText.Create(hangarButton, "Label", "HANGAR", Pal.Gold, 3, Mid, Mid, Vector2.zero);
@@ -53,6 +53,8 @@ namespace TapOrDrag
             }
             weaponText = PixelText.Create(playGroup, "Weapon", "BLASTER LV1", Pal.OrangeLight, 2, TopLeft, TopLeft, new Vector2(12f, -120f));
             weaponText.Visible = false;
+            waveText = PixelText.Create(playGroup, "Wave", "WAVE 1", Pal.Lilac, 2, TopLeft, TopLeft, new Vector2(12f, -140f));
+            waveText.Visible = false;
 
             // Active buffs, right-aligned under the bone counter. Order matches ShooterGame.Buff* bits.
             buffSprites = new[] { art.IconMagnet, art.IconRapid, art.IconWingman, art.IconShieldItem, art.IconGold, art.IconWarp, art.IconShieldItem };
@@ -96,20 +98,33 @@ namespace TapOrDrag
             bombButton.gameObject.SetActive(false);
 
             BuildHangar();
+            BuildCoreChoice();
         }
 
         bool ShooterButtonHit(Vector2 screenPos) =>
             Hit(modePrev, screenPos) || Hit(modeNext, screenPos) || Hit(hangarButton, screenPos)
-            || Hit(skillButton, screenPos) || Hit(bombButton, screenPos) || HangarButtonHit(screenPos);
+            || Hit(skillButton, screenPos) || Hit(bombButton, screenPos) || HangarButtonHit(screenPos) || CoreChoiceOpen;
 
-        public void SetMode(bool shooter)
+        /// <summary>Title lines per mode: 0 flappy, 1 DOG BLAST, 2 CORE RUN.</summary>
+        public void SetMode(int mode)
         {
+            string[] top = { "TAP", "DOG", "CORE" }, mid = { "< FLAPPY >", "< SHOOTER >", "< ROGUELIKE >" }, bottom = { "DRAG", "BLAST", "RUN" };
+            Color32[] bottomColor = { Art.GateMain[0], Pal.Rose, Art.PlasmaColor };
+            mode = Mathf.Clamp(mode, 0, 2);
             titleTop.SetColor(Pal.Orange);
-            titleTop.Set(shooter ? "DOG" : "TAP");
+            titleTop.Set(top[mode]);
             titleMid.SetColor(Pal.White);
-            titleMid.Set(shooter ? "< SHOOTER >" : "< FLAPPY >");
-            titleBottom.SetColor(shooter ? Pal.Rose : Art.GateMain[0]);
-            titleBottom.Set(shooter ? "BLAST" : "DRAG");
+            titleMid.Set(mid[mode]);
+            titleBottom.SetColor(bottomColor[mode]);
+            titleBottom.Set(bottom[mode]);
+            shooterPanelLine.Set(mode == 2 ? "PICK A CORE EVERY WAVE" : "AUTO FIRE - STOP THE CATS");
+            shooterPanelLine.SetColor(mode == 2 ? Art.PlasmaColor : Art.PelletColor);
+        }
+
+        public void SetWave(int wave)
+        {
+            waveText.Visible = shooterHud && wave > 0;
+            waveText.Set("WAVE " + wave);
         }
 
         public void SetShooterHud(bool on)
@@ -131,6 +146,8 @@ namespace TapOrDrag
                 warningTime = 0f;
                 warningText.Visible = warningName.Visible = false;
                 SetBuffIcons(0);
+                waveText.Visible = false;
+                HideCoreChoice();
             }
             for (int i = 0; i < MaxHeartIcons; i++) heartIcons[i].gameObject.SetActive(false);
         }
