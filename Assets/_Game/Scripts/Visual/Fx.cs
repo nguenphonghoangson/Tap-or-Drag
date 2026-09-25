@@ -93,18 +93,26 @@ namespace TapOrDrag
             }
         }
 
+        public void CoinPickup(Vector2 pos)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                float a = Random.value * Mathf.PI * 2f;
+                Emit(sparkle, pos, new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * Random.Range(1.5f, 3.5f), i % 2 == 0 ? Pal.Gold : Pal.White, PixelSize(1, 2), 0.3f);
+            }
+        }
+
         public void PipePass(Vector2 pos, float worldSpeed)
         {
             Burst(pos, Pal.Orange, Pal.OrangeLight, 18, 6f, worldSpeed * 0.8f, true);
             Burst(pos, Pal.White, Pal.Gold, 8, 3f, worldSpeed * 0.8f, false, 0.4f);
         }
 
-        public void GateBreak(DashGate gate, float worldSpeed)
+        public void GateBreak(float gateX, int v, float worldSpeed)
         {
-            int v = gate.Variant;
             for (int i = 0; i < 48; i++)
             {
-                var pos = new Vector2(gate.X + Random.Range(-0.3f, 0.3f), Random.Range(World.GroundTop, World.Top));
+                var pos = new Vector2(gateX + Random.Range(-0.3f, 0.3f), Random.Range(World.GroundTop, World.Top));
                 var vel = new Vector2(Random.Range(-2f, 5f) - worldSpeed * 0.6f, Random.Range(-2.5f, 2.5f));
                 Color32 c = i % 3 == 0 ? Art.GateCore[v] : i % 3 == 1 ? Art.GateMain[v] : Art.GateDeep[v];
                 Emit(i % 3 == 0 ? debris : sparkle, pos, vel, c, PixelSize(2, 4), Random.Range(0.3f, 0.7f));

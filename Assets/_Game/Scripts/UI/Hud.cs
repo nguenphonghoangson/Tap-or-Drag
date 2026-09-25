@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace TapOrDrag
 {
     /// <summary>Builds and animates all UI: score, combo, best, mute, title screen, game-over panel, screen flash.</summary>
-    public class Hud : MonoBehaviour
+    public partial class Hud : MonoBehaviour
     {
         static readonly Vector2 Top = new Vector2(0.5f, 1f);
         static readonly Vector2 BottomMid = new Vector2(0.5f, 0f);
@@ -19,7 +19,9 @@ namespace TapOrDrag
         AudioManager audioManager;
         RectTransform frame, playGroup, readyGroup, gameOverGroup, titleGroup, goPanel, muteButton;
         RectTransform skinSelector, skinLeft, skinRight;
-        PixelText score, combo, toast, best, swipeHint, tapToStart, tapToRetry, goTitle, goScore, goBest, goNewBest, goNewSkin;
+        PixelText score, combo, toast, best, swipeHint, tapToStart, tapToRetry, goTitle, goScore, goBest, goNewBest;
+        Image tutorialPanel;
+        string hintText;
         PixelText skinName, skinSkill, skinInfo;
         PixelText[] skinLabels;
         Camera cam;
@@ -30,7 +32,7 @@ namespace TapOrDrag
         float feverProgress;
         Color flashColor = Color.white;
         float flashAlpha, time, scorePunch, comboPunch, bestPulse, comboBreak, toastTime, goTime;
-        bool hintOn, newBestShown, newSkinShown;
+        bool hintOn, newBestShown;
         string lastScore;
 
         /// <summary>Raised by the skin arrows on the title screen (-1 / +1).</summary>
@@ -101,7 +103,8 @@ namespace TapOrDrag
             skinInfo = PixelText.Create(skinSelector, "SkinInfo", "1/6", Pal.Lilac, 2, Mid, Top, new Vector2(0f, -88f));
             skinLabels = new[] { skinName, skinSkill, skinInfo };
 
-            var tutorial = NewImage(readyGroup, "Tutorial", art.Panel, 1f, BottomMid, BottomMid, new Vector2(0f, 196f));
+            var tutorial = NewImage(readyGroup, "Tutorial", art.Panel, 1f, BottomMid, BottomMid, new Vector2(0f, 180f));
+            tutorialPanel = tutorial;
             tutorial.type = Image.Type.Sliced;
             tutorial.rectTransform.sizeDelta = new Vector2(300f, 136f);
             NewImage(tutorial.transform, "PipeIcon", art.IconPipe, 3f, TopLeft, TopLeft, new Vector2(26f, -16f));
@@ -123,7 +126,6 @@ namespace TapOrDrag
             PixelText.Create(goPanel, "BestLabel", "BEST", Pal.Lilac, 2, Top, Top, new Vector2(0f, -128f));
             goBest = PixelText.Create(goPanel, "Best", "0", Pal.Gold, 4, Top, Top, new Vector2(0f, -152f));
             goNewBest = PixelText.Create(gameOverGroup, "NewBest", "NEW BEST!", Pal.Gold, 4, Top, Top, new Vector2(0f, -492f));
-            goNewSkin = PixelText.Create(gameOverGroup, "NewSkin", "NEW SKIN!", Art.SpikyColor, 3, Top, Top, new Vector2(0f, -536f));
             tapToRetry = PixelText.Create(gameOverGroup, "TapToRetry", "TAP TO RETRY", Pal.White, 3, BottomMid, BottomMid, new Vector2(0f, 150f));
 
             feverOverlay = NewImage(transform, "FeverOverlay", null, 1f, Mid, Mid, Vector2.zero);
@@ -135,12 +137,13 @@ namespace TapOrDrag
             Stretch(flash.rectTransform);
             flash.color = new Color(1f, 1f, 1f, 0f);
 
+            BuildMeta();
             RefreshMute();
             FitFrame();
         }
 
         public bool IsOverButton(Vector2 screenPos) =>
-            Hit(muteButton, screenPos) || Hit(skinLeft, screenPos) || Hit(skinRight, screenPos);
+            Hit(muteButton, screenPos) || Hit(skinLeft, screenPos) || Hit(skinRight, screenPos) || MetaButtonHit(screenPos);
 
         static bool Hit(RectTransform rt, Vector2 screenPos) =>
             rt != null && rt.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);
@@ -172,11 +175,10 @@ namespace TapOrDrag
             gameOverGroup.gameObject.SetActive(false);
         }
 
-        public void ShowGameOver(int finalScore, int bestScore, bool isNewBest, string unlockedSkin)
+        public void ShowGameOver(int finalScore, int bestScore, bool isNewBest, int runCoins)
         {
             SetFever(false);
-            newSkinShown = unlockedSkin != null;
-            if (newSkinShown) goNewSkin.Set("NEW SKIN: " + unlockedSkin);
+            ShowRunCoins(runCoins);
             playGroup.gameObject.SetActive(false);
             gameOverGroup.gameObject.SetActive(true);
             goScore.Set(finalScore.ToString());
@@ -228,9 +230,14 @@ namespace TapOrDrag
             toastTime = 1.6f;
         }
 
-        public void SetSwipeHint(bool on, Color32 color)
+        public void SetHint(bool on, string text, Color32 color)
         {
-            if (on && !hintOn) swipeHint.SetColor(color);
+            if (on && (!hintOn || text != hintText))
+            {
+                swipeHint.SetColor(color);
+                swipeHint.Set(text);
+                hintText = text;
+            }
             hintOn = on;
         }
 
@@ -293,7 +300,6 @@ namespace TapOrDrag
             goPanel.localScale = Vector3.one * Mathf.Max(0.01f, EaseOutBack(k));
             goTitle.Rect.anchoredPosition = new Vector2(0f, -150f + (1f - k) * (1f - k) * 80f);
             goNewBest.Visible = newBestShown && goTime > 0.3f && ((int)(time * 5f) & 1) == 0;
-            goNewSkin.Visible = newSkinShown && goTime > 0.5f && ((int)(time * 5f + 0.5f) & 1) == 0;
             tapToRetry.Visible = goTime > 0.45f && ((int)(time * 2.2f) & 1) == 0;
 
             if (feverOn)
@@ -311,6 +317,8 @@ namespace TapOrDrag
             flashAlpha = Mathf.MoveTowards(flashAlpha, 0f, dt * 3f);
             flash.color = new Color(flashColor.r, flashColor.g, flashColor.b, flashAlpha);
             flash.enabled = flashAlpha > 0f;
+
+            TickMeta(dt);
         }
 
         void LateUpdate()
@@ -335,14 +343,15 @@ namespace TapOrDrag
         /// <summary>World point (the idle bird) the skin arrows and name are laid out around.</summary>
         public void SetSelectorAnchor(Vector3 world) => selectorWorld = world;
 
-        public void SetSkin(string skinLabel, bool locked, int unlockBest, int index, int count, string skillText, Color32 skillColor)
+        public void SetSkin(string skinLabel, bool owned, int price, bool affordable, int index, int count, string skillText, Color32 skillColor)
         {
             skinSkill.SetColor(skillColor);
             skinSkill.Set(skillText);
-            skinName.SetColor(locked ? Pal.Lilac : Pal.White);
-            skinName.Set(locked ? "LOCKED" : skinLabel);
-            skinInfo.SetColor(locked ? Pal.Gold : Pal.Lilac);
-            skinInfo.Set(locked ? "BEST " + unlockBest : (index + 1) + "/" + count);
+            skinName.SetColor(owned ? Pal.White : Pal.Lilac);
+            skinName.Set(skinLabel);
+            skinInfo.Visible = owned;
+            skinInfo.Set((index + 1) + "/" + count);
+            SetBuyButton(!owned, price, affordable);
         }
 
         /// <summary>Keep the UI frame on the 405x820 play field even when the screen is wider (e.g. landscape Game view).</summary>

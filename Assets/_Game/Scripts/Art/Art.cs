@@ -7,13 +7,14 @@ namespace TapOrDrag
     /// Every sprite in the prototype is painted at startup from ASCII pixel maps or small procedural rules,
     /// so the project needs no imported art. Palette: dusk synthwave sky, orange pipes, cyan/pink neon gates.
     /// </summary>
-    public sealed class Art
+    public sealed partial class Art
     {
         public const float UiPPU = 100f / 3f;
 
-        public static readonly Color32[] GateCore = { Pal.Hex("eaffff"), Pal.Hex("fff0fb") };
-        public static readonly Color32[] GateMain = { Pal.Hex("3ff0ff"), Pal.Hex("ff5fd8") };
-        public static readonly Color32[] GateDeep = { Pal.Hex("1f7dff"), Pal.Hex("a43dff") };
+        public static readonly Color32[] GateCore = { Pal.Hex("eaffff"), Pal.Hex("fff0fb"), Pal.Hex("fff0f0") };
+        public static readonly Color32[] GateMain = { Pal.Hex("3ff0ff"), Pal.Hex("ff5fd8"), Pal.Hex("ff3b4e") };
+        public static readonly Color32[] GateDeep = { Pal.Hex("1f7dff"), Pal.Hex("a43dff"), Pal.Hex("b3163a") };
+        public const int RedVariant = 2; // trap gates (do NOT dash)
 
         public SkinArt[] Skins;           // parallel to SkinDef.All
         public Sprite[] BirdSilhouette;   // [wing frame], shared by all skins
@@ -43,6 +44,7 @@ namespace TapOrDrag
             art.BuildFx();
             art.BuildScenery();
             art.BuildUi();
+            art.BuildExtras();
             return art;
         }
 
@@ -407,9 +409,9 @@ namespace TapOrDrag
 
         void BuildGate()
         {
-            GateBeam = new Sprite[2][];
-            GateEmitter = new Sprite[2];
-            for (int v = 0; v < 2; v++)
+            GateBeam = new Sprite[GateMain.Length][];
+            GateEmitter = new Sprite[GateMain.Length];
+            for (int v = 0; v < GateMain.Length; v++)
             {
                 Color32 core = GateCore[v], main = GateMain[v], deep = GateDeep[v];
                 GateBeam[v] = new Sprite[4];
@@ -580,10 +582,11 @@ namespace TapOrDrag
         static readonly int[,] Bayer = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
 
         /// <summary>Vertical dithered gradient, 4px wide so it tiles horizontally. Pivot at the top.</summary>
-        public static Sprite BuildSky(int rows)
+        public static Sprite BuildSky(int rows, string[] palette = null)
         {
-            var cols = new Color32[SkyHex.Length];
-            for (int i = 0; i < cols.Length; i++) cols[i] = Pal.Hex(SkyHex[i]);
+            palette = palette ?? SkyHex;
+            var cols = new Color32[palette.Length];
+            for (int i = 0; i < cols.Length; i++) cols[i] = Pal.Hex(palette[i]);
             var pc = new PixelCanvas(4, rows);
             for (int y = 0; y < rows; y++)
             {

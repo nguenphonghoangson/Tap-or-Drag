@@ -51,14 +51,42 @@ namespace TapOrDrag.EditorTools
         [MenuItem("Tap Or Drag/Game View 405x820 (Portrait)")]
         static void MenuGameView() => SetGameView(true);
 
-        [MenuItem("Tap Or Drag/Reset Best Score")]
+        [MenuItem("Tap Or Drag/Reset Progress (best, coins, skins, missions)")]
         static void ResetBest()
         {
-            PlayerPrefs.DeleteKey("TapOrDrag.Best");
-            PlayerPrefs.DeleteKey("TapOrDrag.GatesCleared");
-            PlayerPrefs.DeleteKey("TapOrDrag.Skin");
+            foreach (var key in new[] { "TapOrDrag.Best", "TapOrDrag.GatesCleared", "TapOrDrag.Skin", "TapOrDrag.Runs", "TapOrDrag.RedGatesPassed" })
+                PlayerPrefs.DeleteKey(key);
+            Economy.ResetAll();
+            Missions.ResetAll();
             PlayerPrefs.Save();
-            Debug.Log("[TapOrDrag] Best score and tutorial progress reset.");
+            Debug.Log("[TapOrDrag] Progress reset (best score, coins, owned skins, missions, tutorial).");
+        }
+
+        [MenuItem("Tap Or Drag/Debug: +1000 Coins")]
+        static void GiveCoins()
+        {
+            if (Application.isPlaying)
+            {
+                Economy.Add(1000);
+                Economy.Save();
+            }
+            else
+            {
+                // Economy is not loaded outside Play mode: touch only the coin key so owned skins are not overwritten.
+                PlayerPrefs.SetInt("TapOrDrag.Coins", PlayerPrefs.GetInt("TapOrDrag.Coins", 0) + 1000);
+                PlayerPrefs.Save();
+            }
+            Debug.Log("[TapOrDrag] +1000 coins (shown after the next title screen refresh).");
+        }
+
+        [MenuItem("Tap Or Drag/Playtest Summary")]
+        static void PlaytestSummary() => Debug.Log(PlaytestStats.Summary());
+
+        [MenuItem("Tap Or Drag/Reveal Playtest Log")]
+        static void RevealPlaytestLog()
+        {
+            if (File.Exists(PlaytestStats.FilePath)) EditorUtility.RevealInFinder(PlaytestStats.FilePath);
+            else Debug.Log("[TapOrDrag] No playtest log yet: " + PlaytestStats.FilePath);
         }
 
         static void EnsureConfig()

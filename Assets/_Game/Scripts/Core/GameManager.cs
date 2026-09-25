@@ -6,15 +6,17 @@ namespace TapOrDrag
 {
     public enum GameState { Ready, Playing, Dead }
 
-    enum ObstacleKind { Pipe, Gate, Enemy }
+    enum ObstacleKind { Pipe, Gate, Enemy, RedGate, SwitchGate, Portal, SwitchWall }
 
     /// <summary>
     /// Owns the run: state machine, obstacle spawning, collisions, dash, score/combo and best score.
     /// Rules: tap = flap through orange pipes; swipe = dash through neon gates. Crashing into anything is fatal.
     /// Spiky enemies are a choice: dodge them with taps or dash through them to stomp them for more points.
+    /// Red gates are the reverse: fly through the gap and do NOT dash. Switch gates flip between both rules when close.
     /// A swipe with no gate/enemy in range is a wrong move: combo resets to x1 (or death if GameConfig.wrongSwipeIsFatal).
+    /// Meta systems (coins, shop, missions, biomes, playtest log) live in GameManager.Meta.cs.
     /// </summary>
-    public class GameManager : MonoBehaviour
+    public partial class GameManager : MonoBehaviour
     {
         const string BestKey = "TapOrDrag.Best";
         const string GatesClearedKey = "TapOrDrag.GatesCleared";
@@ -34,6 +36,8 @@ namespace TapOrDrag
         readonly Stack<PipePair> pipePool = new Stack<PipePair>();
         readonly Stack<DashGate> gatePool = new Stack<DashGate>();
         readonly Stack<SpikyEnemy> enemyPool = new Stack<SpikyEnemy>();
+        readonly Stack<TrapGate> trapPool = new Stack<TrapGate>();
+        readonly Queue<ObstacleKind> pattern = new Queue<ObstacleKind>();
         Transform obstacleRoot;
 
         GameState state;
@@ -44,7 +48,7 @@ namespace TapOrDrag
         float dashTimer, dashBoost, dashCooldown, ghostTimer;
         Obstacle dashTarget;
         int screenW, screenH;
-        int skinIndex, equippedSkin, bestAtRunStart;
+        int skinIndex, equippedSkin;
 
         // Skill of the bird used for the current run.
         SkillKind skill;
@@ -55,7 +59,7 @@ namespace TapOrDrag
         // Fever / perfect dash.
         bool fever;
         float feverTime, feverGhostTimer;
-        int nextFeverStreak;
+        int feverReadyAt; // clears count from which the next Fever may start
         Obstacle perfectTarget;
 
         void Awake()
@@ -95,6 +99,7 @@ namespace TapOrDrag
             hud.Build(art, sound, cam);
             hud.SetBest(best, false);
             hud.SkinStepRequested += StepSkin;
+            InitMeta();
 
             equippedSkin = Mathf.Clamp(PlayerPrefs.GetInt(SkinKey, 0), 0, art.Skins.Length - 1);
             if (!IsSkinUnlocked(equippedSkin)) equippedSkin = 0;
@@ -179,6 +184,7 @@ namespace TapOrDrag
             nextSpawnX -= dx;
             background.Tick(dt, dx);
             bird.TickPlay(dt);
+            TickPortals(dt, bird.Position.x, true);
 
             Vector2 bp = bird.Position;
             float r = cfg.hitRadius;
@@ -211,6 +217,11 @@ namespace TapOrDrag
                         g.Break();
                         OnCleared(g);
                     }
+                    else if (obstacles[i] is TrapGate tg && !tg.Broken && tg.Mode == TrapGate.GateMode.Dash && tg.X - tg.HalfWidth < bp.x + r)
+                    {
+                        tg.Break();
+                        OnCleared(tg);
+                    }
                     else if (obstacles[i] is SpikyEnemy e && !e.Defeated)
                     {
                         float reach = r + SpikyEnemy.Radius + 0.15f;
@@ -231,7 +242,7 @@ namespace TapOrDrag
             {
                 if (!fever && !bird.Invulnerable && !TryShield(null))
                 {
-                    Die(-1);
+                    Die(-1, hitsGround ? "GROUND" : "CEILING");
                     return;
                 }
                 if (hitsGround) bird.Bounce(World.GroundTop + r + 0.02f, cfg.flapVelocity);
@@ -243,9 +254,11 @@ namespace TapOrDrag
                 foreach (var o in obstacles)
                 {
                     if (dashPhasing && o is PipePair) continue; // NINJA shadow dash
-                    if (!o.Hits(bp, r)) continue;
+                    // Dashing into a red gate is fatal anywhere in its column, gap included.
+                    bool lethal = o is TrapGate trap && dashing && trap.Mode == TrapGate.GateMode.Trap ? trap.TouchesColumn(bp, r) : o.Hits(bp, r);
+                    if (!lethal) continue;
                     if (TryShield(o)) break;
-                    Die(o is DashGate g ? g.Variant : -1);
+                    Die(DeathVariant(o), DeathCause(o));
                     return;
                 }
 
@@ -261,6 +274,8 @@ namespace TapOrDrag
                     OnCleared(o); // pipe passed, or enemy dodged
                 }
 
+            TickCoins(dt, bp);
+
             while (nextSpawnX < World.SpawnX) SpawnNext();
             for (int i = obstacles.Count - 1; i >= 0; i--)
                 if (obstacles[i].X < -World.SpawnX - 1f)
@@ -269,17 +284,15 @@ namespace TapOrDrag
                     obstacles.RemoveAt(i);
                 }
 
-            var hintTarget = dashing ? null : FindDashTarget(bp, false);
-            bool tutorial = hintTarget is SpikyEnemy
-                ? runStomps == 0
-                : gatesClearedTotal < cfg.swipeHintUntilGates || runGatesCleared == 0;
-            hud.SetSwipeHint(tutorial && hintTarget != null, DashColor(hintTarget));
+            UpdateHint(bp);
         }
 
         void TickDead(float dt)
         {
             worldSpeed = Mathf.MoveTowards(worldSpeed, 0f, 25f * dt);
             foreach (var o in obstacles) o.Tick(dt, worldSpeed);
+            ScrollCoins(dt);
+            TickPortals(dt, bird.Position.x, false);
             background.Tick(dt, worldSpeed * dt);
 
             bool wasGrounded = bird.Grounded;
@@ -291,14 +304,7 @@ namespace TapOrDrag
                 sound.Thud();
             }
 
-            if (!gameOverShown && ((bird.Grounded && stateTime > 0.55f) || stateTime > 1.6f))
-            {
-                gameOverShown = true;
-                retryAt = stateTime + 0.45f;
-                hud.ShowGameOver(score, best, newBestThisRun, NewlyUnlockedSkin());
-                if (newBestThisRun) sound.NewBest();
-                else sound.GameOver();
-            }
+            if (!gameOverShown) TickDeathFlow((bird.Grounded && stateTime > 0.55f) || stateTime > 1.6f);
         }
 
         // ---------------------------------------------------------------- input
@@ -327,12 +333,14 @@ namespace TapOrDrag
         void OnSwipe()
         {
             if (state != GameState.Playing || stateTime < 0.25f) return;
+            if (fever) return; // Fever already smashes everything; dashing would only turn it into a speed exploit
             if (dashing || dashCooldown > 0f) return;
 
             Vector2 bp = bird.Position;
             dashPhasing = skill == SkillKind.ShadowDash && shadowCooldown <= 0f;
             phasedPipe = false;
             bird.SetPhasing(dashPhasing);
+            bool switchesWall = SolidSwitchWallAhead(bp) != null; // checked before the toggle below
             dashTarget = FindDashTarget(bp, dashPhasing);
             perfectTarget = null;
             if (dashTarget != null && (dashTarget.X - dashTarget.HalfWidth) - (bp.x + cfg.hitRadius) <= cfg.perfectDashDistance)
@@ -342,14 +350,15 @@ namespace TapOrDrag
             ghostTimer = 0f;
             dashBoost = cfg.dashBoostSpeed;
             bird.BeginDash();
+            ToggleSwitch();
             sound.Dash();
             fx.Kick(0.035f);
             fx.DashStart(bp, DashColor(dashTarget));
 
-            if (dashTarget == null && !fever)
+            if (dashTarget == null && !fever && !switchesWall)
             {
                 Miss();
-                if (cfg.wrongSwipeIsFatal) Die(-1);
+                if (cfg.wrongSwipeIsFatal) Die(-1, "WRONG SWIPE");
             }
         }
 
@@ -364,6 +373,7 @@ namespace TapOrDrag
             foreach (var o in obstacles)
             {
                 if (o is DashGate g && g.Broken) continue;
+                if (o is TrapGate tg && (tg.Broken || tg.Mode == TrapGate.GateMode.Trap)) continue;
                 if (o is SpikyEnemy e && (e.Defeated || Mathf.Abs(e.Position.y - bp.y) > cfg.enemyLockRange)) continue;
                 if (o is PipePair && (!includePipes || o.Cleared)) continue;
                 float d = (o.X - o.HalfWidth) - (bp.x + r);
@@ -379,6 +389,7 @@ namespace TapOrDrag
         static Color DashColor(Obstacle target)
         {
             Color c = target is DashGate g ? (Color)Art.GateMain[g.Variant]
+                : target is TrapGate tg ? (Color)Art.GateMain[tg.Variant]
                 : target is SpikyEnemy ? (Color)Art.SpikyColor
                 : new Color(0.85f, 0.8f, 1f);
             c.a = 0.7f;
@@ -427,10 +438,11 @@ namespace TapOrDrag
             dashTarget = null;
 
             EndFever(true);
-            nextFeverStreak = 0;
+            feverReadyAt = 0;
             perfectTarget = null;
             bird.ResetAt(ReadyBirdY);
             ApplySkin();
+            ResetRunMeta();
             hud.SetSelectorAnchor(new Vector3(World.BirdX, ReadyBirdY, 0f));
             hud.ShowReady();
             hud.SetScore(0, 1, false);
@@ -445,7 +457,6 @@ namespace TapOrDrag
                 skinIndex = equippedSkin; // a locked skin was only being previewed
                 ApplySkin();
             }
-            bestAtRunStart = best;
             SetupSkill();
             state = GameState.Playing;
             stateTime = 0f;
@@ -453,13 +464,15 @@ namespace TapOrDrag
             nextKind = ObstacleKind.Pipe;
             lastGapCenter = bird.Position.y;
             hud.ShowPlaying();
+            BeginRunMeta();
             sound.RunStart();
             DoFlap();
         }
 
-        void Die(int gateVariant)
+        void Die(int gateVariant, string cause)
         {
             if (state != GameState.Playing) return;
+            lastDeathCause = gravityInverted ? cause + " FLIPPED" : cause;
             state = GameState.Dead;
             stateTime = 0f;
             gameOverShown = false;
@@ -479,7 +492,8 @@ namespace TapOrDrag
             fx.Death(bp, gateVariant);
             fx.Shake(0.5f, 0.45f);
             hud.Flash(gateVariant >= 0 ? (Color)Art.GateMain[gateVariant] : Color.white);
-            hud.SetSwipeHint(false, Pal.White);
+            hud.SetGravityInverted(false);
+            hud.SetHint(false, "", Pal.White);
             sound.Hit();
             if (gateVariant >= 0) sound.Zap();
             else if (!onGround) StartCoroutine(Delayed(0.3f, sound.Fall));
@@ -487,7 +501,7 @@ namespace TapOrDrag
 
             if (newBestThisRun) PlayerPrefs.SetInt(BestKey, best);
             PlayerPrefs.SetInt(GatesClearedKey, gatesClearedTotal);
-            PlayerPrefs.Save();
+            SaveMeta();
 
             StartCoroutine(HitStop(0.09f));
         }
@@ -515,6 +529,8 @@ namespace TapOrDrag
             bool comboUp = newMultiplier > multiplier;
             multiplier = newMultiplier;
             int basePoints = o is DashGate ? cfg.gatePoints
+                : o is SwitchWall ? cfg.switchWallPoints
+                : o is TrapGate scoredTrap ? (scoredTrap.Broken ? cfg.gatePoints : cfg.redGatePoints) + (scoredTrap.IsSwitch ? cfg.switchGateBonus : 0)
                 : o is SpikyEnemy enemy ? (enemy.Defeated ? cfg.enemyStompPoints : cfg.enemyDodgePoints)
                 : cfg.pipePoints;
             int points = Scaled(basePoints);
@@ -534,6 +550,7 @@ namespace TapOrDrag
                 if (spiky.Defeated)
                 {
                     runStomps++;
+                    missions.Add(MissionType.StompEnemies);
                     fx.EnemyStomp(at, worldSpeed);
                     fx.Float("+" + points, Art.SpikyColor, at + new Vector2(0.4f, 0.9f), 1.4f, worldSpeed * 0.4f);
                     fx.Shake(0.18f, 0.15f);
@@ -550,13 +567,39 @@ namespace TapOrDrag
             {
                 runGatesCleared++;
                 gatesClearedTotal++;
-                fx.GateBreak(gate, worldSpeed);
+                missions.Add(MissionType.BreakGates);
+                fx.GateBreak(gate.X, gate.Variant, worldSpeed);
                 fx.Float("+" + points, Art.GateMain[gate.Variant], new Vector2(gate.X + 0.6f, bird.Position.y + 0.9f), 1.2f, worldSpeed * 0.4f);
                 sound.GateBreak();
+            }
+            else if (o is SwitchWall clearedWall) OnSwitchWallCleared(clearedWall, points);
+            else if (o is TrapGate trapped)
+            {
+                if (trapped.Broken)
+                {
+                    runGatesCleared++;
+                    gatesClearedTotal++;
+                    missions.Add(MissionType.BreakGates);
+                    fx.GateBreak(trapped.X, trapped.Variant, worldSpeed);
+                    fx.Float("+" + points, Art.GateMain[trapped.Variant], new Vector2(trapped.X + 0.6f, bird.Position.y + 0.9f), 1.2f, worldSpeed * 0.4f);
+                    sound.GateBreak();
+                }
+                else
+                {
+                    runRedGates++;
+                    redGatesPassedTotal++;
+                    missions.Add(MissionType.PassRedGates);
+                    var at = new Vector2(trapped.X, trapped.GapCenter);
+                    Color32 red = Art.GateMain[Art.RedVariant];
+                    fx.Burst(at, red, Pal.White, 16, 5f, worldSpeed * 0.8f, false, 0.45f);
+                    fx.Float("+" + points, red, at + new Vector2(0f, 0.3f), 1.2f, worldSpeed * 0.5f);
+                    sound.Pass(multiplier);
+                }
             }
             else
             {
                 var pipe = (PipePair)o;
+                missions.Add(MissionType.PassPipes);
                 var at = new Vector2(pipe.X, pipe.GapCenter);
                 fx.PipePass(at, worldSpeed);
                 fx.Float("+" + points, Pal.OrangeLight, at + new Vector2(0f, 0.3f), 1.2f, worldSpeed * 0.5f);
@@ -579,7 +622,7 @@ namespace TapOrDrag
             }
             hud.SetScore(score, multiplier, comboUp);
 
-            if (!fever && multiplier >= cfg.feverAtMultiplier && streak >= nextFeverStreak) StartFever();
+            if (!fever && multiplier >= cfg.feverAtMultiplier && clears >= feverReadyAt) StartFever();
 
             if (score > best)
             {
@@ -593,6 +636,8 @@ namespace TapOrDrag
                 newBestThisRun = true;
                 hud.SetBest(best, true);
             }
+            AfterScoreChanged();
+            UpdateBiome();
         }
 
         void Miss()
@@ -610,7 +655,6 @@ namespace TapOrDrag
                 multiplier = 1;
                 hud.ComboBreak();
             }
-            nextFeverStreak = Mathf.Min(nextFeverStreak, streak);
             hud.SetScore(score, multiplier, false);
             fx.Float("MISS", Pal.Red, bird.Position + new Vector2(0f, 1f), 1.3f);
             fx.Shake(0.12f, 0.15f);
@@ -631,6 +675,8 @@ namespace TapOrDrag
         void StartFever()
         {
             fever = true;
+            runFevers++;
+            missions.Add(MissionType.Fevers);
             feverTime = cfg.feverDuration;
             feverGhostTimer = 0f;
             bird.SetFeverScale(cfg.feverBirdScale);
@@ -650,7 +696,7 @@ namespace TapOrDrag
             bird.SetFeverScale(1f);
             hud.SetFever(false);
             sound.SetMusicPitch(1f);
-            nextFeverStreak = streak + cfg.feverRechargeClears;
+            feverReadyAt = clears + cfg.feverRechargeClears; // misses and shield hits cannot shorten this
             if (silent) return;
             bird.StartInvulnerable(cfg.feverGrace);
             sound.FeverEnd();
@@ -685,6 +731,8 @@ namespace TapOrDrag
                     fx.PipeSmash(pipe, worldSpeed);
                 }
                 else if (o is DashGate gate) gate.Break();
+                else if (o is TrapGate trap) trap.Break();
+                else if (o is SwitchWall wall) wall.Break();
                 else if (o is SpikyEnemy enemy) enemy.Defeat();
                 OnCleared(o);
                 sound.Smash();
@@ -694,6 +742,8 @@ namespace TapOrDrag
 
         void AwardPerfect()
         {
+            runPerfects++;
+            missions.Add(MissionType.Perfects);
             int points = Scaled(cfg.perfectBonus);
             score += points;
             Vector2 bp = bird.Position;
@@ -706,6 +756,8 @@ namespace TapOrDrag
 
         void AwardCloseCall(PipePair pipe)
         {
+            runCloseCalls++;
+            missions.Add(MissionType.CloseCalls);
             int points = Scaled(cfg.closeBonus);
             score += points;
             Vector2 bp = bird.Position;
@@ -779,10 +831,11 @@ namespace TapOrDrag
             bird.StartInvulnerable(cfg.shieldInvulnerable);
 
             if (hit is DashGate gate) gate.Break();
+            else if (hit is TrapGate trap) trap.Break();
+            else if (hit is SwitchWall wall) wall.Break();
             else if (hit is SpikyEnemy enemy) enemy.Defeat();
             else if (hit != null) hit.Cleared = true;
 
-            nextFeverStreak = 0;
             streak = 0;
             multiplier = 1;
             hud.ComboBreak();
@@ -801,7 +854,7 @@ namespace TapOrDrag
 
         const float ReadyBirdY = World.GroundTop + 7f;
 
-        bool IsSkinUnlocked(int index) => cfg.unlockAllSkins || best >= SkinDef.All[index].UnlockBest;
+        bool IsSkinUnlocked(int index) => cfg.unlockAllSkins || Economy.Owns(index);
 
         void ApplySkin()
         {
@@ -809,7 +862,7 @@ namespace TapOrDrag
             bool locked = !IsSkinUnlocked(skinIndex);
             bird.ApplySkin(art.Skins[skinIndex], locked);
             bird.SetShield(def.Skill == SkillKind.Shield && !locked); // preview the bubble on the title screen
-            hud.SetSkin(def.Name, locked, def.UnlockBest, skinIndex, art.Skins.Length, def.SkillText, Pal.Hex(def.SkillColor));
+            hud.SetSkin(def.Name, !locked, def.Price, Economy.Coins >= def.Price, skinIndex, art.Skins.Length, def.SkillText, Pal.Hex(def.SkillColor));
         }
 
         /// <summary>Title-screen skin browsing. Unlocked skins are equipped (and saved) immediately; locked ones are only previewed.</summary>
@@ -832,90 +885,198 @@ namespace TapOrDrag
                 fx.Burst(bird.Position, Pal.Hex(def.Body), Pal.White, 10, 4f, 0f, false, 0.35f);
         }
 
-        /// <summary>Highest skin whose threshold was crossed during the run that just ended, or null.</summary>
-        string NewlyUnlockedSkin()
-        {
-            if (cfg.unlockAllSkins) return null;
-            string unlocked = null;
-            foreach (var def in SkinDef.All)
-                if (def.UnlockBest > bestAtRunStart && def.UnlockBest <= best) unlocked = def.Name;
-            return unlocked;
-        }
-
         // ---------------------------------------------------------------- spawning
+
+        static readonly ObstacleKind[][] Patterns =
+        {
+            new[] { ObstacleKind.Pipe, ObstacleKind.Gate, ObstacleKind.Pipe },
+            new[] { ObstacleKind.Gate, ObstacleKind.RedGate },
+            new[] { ObstacleKind.RedGate, ObstacleKind.Gate },
+            new[] { ObstacleKind.Pipe, ObstacleKind.Enemy, ObstacleKind.Gate },
+            new[] { ObstacleKind.SwitchGate, ObstacleKind.Pipe },
+            new[] { ObstacleKind.Gate, ObstacleKind.Pipe, ObstacleKind.RedGate },
+            new[] { ObstacleKind.SwitchWall, ObstacleKind.SwitchWall },
+            new[] { ObstacleKind.Gate, ObstacleKind.SwitchWall },
+            new[] { ObstacleKind.SwitchWall, ObstacleKind.Pipe, ObstacleKind.SwitchWall },
+        };
+
+        bool nextFromPattern;
 
         void SpawnNext()
         {
             var kind = nextKind;
+            bool thisFromPattern = nextFromPattern;
             float x = nextSpawnX;
-            if (kind == ObstacleKind.Gate)
+            switch (kind)
             {
-                var gate = gatePool.Count > 0 ? gatePool.Pop() : CreateGate();
-                gate.gameObject.SetActive(true);
-                gate.Setup(x, Random.Range(0, 2));
-                obstacles.Add(gate);
-                specialsInRow++;
-            }
-            else if (kind == ObstacleKind.Enemy)
-            {
-                var enemy = enemyPool.Count > 0 ? enemyPool.Pop() : CreateEnemy();
-                enemy.gameObject.SetActive(true);
-                float lo = World.GroundTop + 1.5f + cfg.enemyBobAmplitude;
-                float hi = World.PlayTop - 1.5f - cfg.enemyBobAmplitude;
-                float y = Mathf.Clamp(lastGapCenter + Random.Range(-1.5f, 1.5f), lo, hi);
-                enemy.Setup(x, y, cfg.enemyExtraSpeed, cfg.enemyBobAmplitude);
-                obstacles.Add(enemy);
-                specialsInRow++;
-            }
-            else
-            {
-                var pipe = pipePool.Count > 0 ? pipePool.Pop() : CreatePipe();
-                pipe.gameObject.SetActive(true);
-                float gap = Mathf.Max(cfg.minGap, cfg.startGap - spawned * cfg.gapShrinkPerSpawn);
-                float lo = World.GroundTop + 1.2f + gap * 0.5f;
-                float hi = World.PlayTop - 1.2f - gap * 0.5f;
-                float amplitude = 0f;
-                if (spawned >= cfg.movingPipesAfter && Random.value < cfg.movingPipeChance)
+                case ObstacleKind.Portal:
+                    SpawnPortal(x);
+                    break;
+                case ObstacleKind.SwitchWall:
+                    SpawnSwitchWall(x, spawned == cfg.firstSwitchWallAt);
+                    specialsInRow++;
+                    break;
+                case ObstacleKind.Gate:
                 {
-                    amplitude = cfg.movingPipeAmplitude;
-                    lo += amplitude;
-                    hi -= amplitude;
+                    var gate = gatePool.Count > 0 ? gatePool.Pop() : CreateGate();
+                    gate.gameObject.SetActive(true);
+                    gate.Setup(x, Random.Range(0, 2));
+                    obstacles.Add(gate);
+                    specialsInRow++;
+                    if (Random.value < cfg.coinArcChance) SpawnCoinLine(x + 0.8f, lastGapCenter, 3, 0.6f); // reward for dashing through
+                    break;
                 }
-                float a = Mathf.Max(lo, lastGapCenter - cfg.maxGapDelta);
-                float b = Mathf.Min(hi, lastGapCenter + cfg.maxGapDelta);
-                if (a > b) a = b = Mathf.Clamp(lastGapCenter, Mathf.Min(lo, hi), Mathf.Max(lo, hi));
-                float center = Random.Range(a, b);
-                lastGapCenter = center;
-                pipe.Setup(x, center, gap, amplitude);
-                obstacles.Add(pipe);
-                specialsInRow = 0;
+                case ObstacleKind.Enemy:
+                {
+                    var enemy = enemyPool.Count > 0 ? enemyPool.Pop() : CreateEnemy();
+                    enemy.gameObject.SetActive(true);
+                    float lo = World.GroundTop + 1.5f + cfg.enemyBobAmplitude;
+                    float hi = World.PlayTop - 1.5f - cfg.enemyBobAmplitude;
+                    float y = Mathf.Clamp(lastGapCenter + Random.Range(-1.5f, 1.5f), lo, hi);
+                    enemy.Setup(x, y, cfg.enemyExtraSpeed, cfg.enemyBobAmplitude);
+                    obstacles.Add(enemy);
+                    specialsInRow++;
+                    break;
+                }
+                case ObstacleKind.RedGate:
+                case ObstacleKind.SwitchGate:
+                {
+                    var trap = trapPool.Count > 0 ? trapPool.Pop() : CreateTrap();
+                    trap.gameObject.SetActive(true);
+                    bool isSwitch = kind == ObstacleKind.SwitchGate;
+                    float center = NextGapCenter(cfg.redGateGap, 0f, cfg.maxGapDelta * 0.6f);
+                    var start = isSwitch && Random.value < 0.5f ? TrapGate.GateMode.Dash : TrapGate.GateMode.Trap;
+                    trap.Setup(x, center, cfg.redGateGap, start, isSwitch, cfg.switchFlipDistance);
+                    obstacles.Add(trap);
+                    specialsInRow++;
+                    if (!isSwitch && Random.value < cfg.coinInGapChance) SpawnCoin(new Vector2(x, center));
+                    break;
+                }
+                default:
+                {
+                    var pipe = pipePool.Count > 0 ? pipePool.Pop() : CreatePipe();
+                    pipe.gameObject.SetActive(true);
+                    float gap = Mathf.Max(cfg.minGap, cfg.startGap - spawned * cfg.gapShrinkPerSpawn);
+                    float amplitude = spawned >= cfg.movingPipesAfter && Random.value < cfg.movingPipeChance ? cfg.movingPipeAmplitude : 0f;
+                    float center = NextGapCenter(gap, amplitude, cfg.maxGapDelta);
+                    pipe.Setup(x, center, gap, amplitude);
+                    obstacles.Add(pipe);
+                    specialsInRow = 0;
+                    if (amplitude <= 0f && Random.value < cfg.coinInGapChance) SpawnCoin(new Vector2(x, center));
+                    break;
+                }
             }
 
+            if (kind != ObstacleKind.Portal)
+            {
+                CountObstacleForFlip();
+                lastSpawnWasWall = kind == ObstacleKind.SwitchWall;
+            }
             spawned++;
             nextKind = ChooseKind();
-            nextSpawnX += Spacing(kind, nextKind);
+            float spacing = Spacing(kind, nextKind);
+            if (thisFromPattern && nextFromPattern) spacing *= cfg.patternSpacingScale;
+            if (kind == ObstacleKind.Pipe && Random.value < cfg.coinArcChance) SpawnCoinArc(x, x + spacing, lastGapCenter);
+            nextSpawnX += spacing;
+        }
+
+        /// <summary>Picks the next gap centre within reach of the previous one and within the play area.</summary>
+        float NextGapCenter(float gap, float amplitude, float maxDelta)
+        {
+            float lo = World.GroundTop + 1.2f + gap * 0.5f + amplitude;
+            float hi = World.PlayTop - 1.2f - gap * 0.5f - amplitude;
+            float a = Mathf.Max(lo, lastGapCenter - maxDelta);
+            float b = Mathf.Min(hi, lastGapCenter + maxDelta);
+            if (a > b) a = b = Mathf.Clamp(lastGapCenter, Mathf.Min(lo, hi), Mathf.Max(lo, hi));
+            lastGapCenter = Random.Range(a, b);
+            return lastGapCenter;
+        }
+
+        bool KindAvailable(ObstacleKind kind)
+        {
+            switch (kind)
+            {
+                case ObstacleKind.Gate: return spawned > cfg.firstGateAt;
+                case ObstacleKind.Enemy: return spawned > cfg.firstEnemyAt;
+                case ObstacleKind.RedGate: return spawned > cfg.firstRedGateAt;
+                case ObstacleKind.SwitchGate: return spawned > cfg.firstSwitchGateAt;
+                case ObstacleKind.Portal: return spawned > cfg.firstPortalAt;
+                case ObstacleKind.SwitchWall: return spawned > cfg.firstSwitchWallAt;
+                default: return true;
+            }
         }
 
         ObstacleKind ChooseKind()
         {
+            nextFromPattern = false;
+            if (pattern.Count > 0)
+            {
+                nextFromPattern = true;
+                return pattern.Dequeue();
+            }
+            if (ReturnPortalDue) return ObstacleKind.Portal; // close the flipped section
+            // Scripted first encounters (each one also shows a hint).
             if (spawned < cfg.firstGateAt) return ObstacleKind.Pipe;
             if (spawned == cfg.firstGateAt) return ObstacleKind.Gate;
             if (spawned == cfg.firstEnemyAt) return ObstacleKind.Enemy;
+            if (spawned == cfg.firstRedGateAt) return ObstacleKind.RedGate;
+            if (spawned == cfg.firstSwitchGateAt) return ObstacleKind.SwitchGate;
+            if (spawned == cfg.firstPortalAt && !spawnInverted) return ObstacleKind.Portal;
+            if (spawned == cfg.firstSwitchWallAt) return ObstacleKind.SwitchWall;
             if (specialsInRow >= cfg.maxGatesInRow) return ObstacleKind.Pipe;
+            if (!spawnInverted && KindAvailable(ObstacleKind.Portal) && Random.value < cfg.portalChance) return ObstacleKind.Portal;
+
+            if (spawned >= cfg.firstPatternAt && Random.value < cfg.patternChance)
+            {
+                var candidates = new List<ObstacleKind[]>();
+                foreach (var p in Patterns)
+                    if (System.Array.TrueForAll(p, KindAvailable)) candidates.Add(p);
+                if (candidates.Count > 0)
+                {
+                    foreach (var k in candidates[Random.Range(0, candidates.Count)]) pattern.Enqueue(k);
+                    nextFromPattern = true;
+                    return pattern.Dequeue();
+                }
+            }
+
             float roll = Random.value;
             if (roll < cfg.gateChance) return ObstacleKind.Gate;
-            if (spawned > cfg.firstEnemyAt && roll < cfg.gateChance + cfg.enemyChance) return ObstacleKind.Enemy;
+            roll -= cfg.gateChance;
+            if (KindAvailable(ObstacleKind.Enemy) && roll < cfg.enemyChance) return ObstacleKind.Enemy;
+            roll -= cfg.enemyChance;
+            if (KindAvailable(ObstacleKind.RedGate) && roll < cfg.redGateChance) return ObstacleKind.RedGate;
+            roll -= cfg.redGateChance;
+            if (KindAvailable(ObstacleKind.SwitchGate) && roll < cfg.switchGateChance) return ObstacleKind.SwitchGate;
+            roll -= cfg.switchGateChance;
+            if (KindAvailable(ObstacleKind.SwitchWall) && roll < cfg.switchWallChance) return ObstacleKind.SwitchWall;
             return ObstacleKind.Pipe;
         }
 
         float Spacing(ObstacleKind current, ObstacleKind next)
         {
-            // Specials need room after them (dash boost eats distance); enemies also close in on what is ahead of them.
-            if (current == ObstacleKind.Gate) return next == ObstacleKind.Enemy ? Mathf.Max(cfg.gateSpacingAfter, cfg.enemySpacingBefore) : cfg.gateSpacingAfter;
+            // Anything that may be dashed needs room after it (dash boost eats distance);
+            // enemies also close in on whatever is ahead of them.
+            bool dashable = current == ObstacleKind.Gate || current == ObstacleKind.SwitchGate;
+            if (dashable) return next == ObstacleKind.Enemy ? Mathf.Max(cfg.gateSpacingAfter, cfg.enemySpacingBefore) : cfg.gateSpacingAfter;
+            if (current == ObstacleKind.Portal) return next == ObstacleKind.Enemy ? Mathf.Max(cfg.portalSpacingAfter, cfg.enemySpacingBefore) : cfg.portalSpacingAfter;
             if (current == ObstacleKind.Enemy) return cfg.enemySpacingAfter;
-            if (next == ObstacleKind.Gate) return cfg.gateSpacingBefore;
+            if (next == ObstacleKind.Portal) return cfg.portalSpacingBefore;
+            if (current == ObstacleKind.SwitchWall) return cfg.switchWallSpacingAfter;
+            if (next == ObstacleKind.SwitchWall) return cfg.switchWallSpacingBefore;
             if (next == ObstacleKind.Enemy) return cfg.enemySpacingBefore;
-            return cfg.pipeSpacing;
+            if (current == ObstacleKind.RedGate) return cfg.pipeSpacing;
+            if (next == ObstacleKind.Gate || next == ObstacleKind.SwitchGate) return cfg.gateSpacingBefore;
+            return cfg.pipeSpacing; // pipe -> pipe, pipe -> red gate (needs vertical travel)
+        }
+
+        TrapGate CreateTrap()
+        {
+            var go = new GameObject("TrapGate");
+            go.transform.SetParent(obstacleRoot, false);
+            var trap = go.AddComponent<TrapGate>();
+            trap.Build(art);
+            trap.Flip = OnGateFlipped;
+            return trap;
         }
 
         PipePair CreatePipe()
@@ -951,6 +1112,8 @@ namespace TapOrDrag
             if (o is PipePair p) pipePool.Push(p);
             else if (o is DashGate g) gatePool.Push(g);
             else if (o is SpikyEnemy e) enemyPool.Push(e);
+            else if (o is TrapGate t) trapPool.Push(t);
+            else if (o is SwitchWall w) switchPool.Push(w);
         }
     }
 }

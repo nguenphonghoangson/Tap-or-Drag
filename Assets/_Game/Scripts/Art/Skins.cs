@@ -7,13 +7,14 @@ namespace TapOrDrag
     public enum SkillKind { None, Shield, RoyalCombo, ShadowDash, AntiGrav, Midas }
 
     /// <summary>
-    /// Bird skin = recolour of the shared bird pixel map + optional scarf + a hat. Unlocked by best score.
+    /// Bird skin = recolour of the shared bird pixel map + optional scarf + a hat. Bought with coins (see Economy).
     /// Colours are hex strings; hat colour keys match the characters used in that hat's pixel map (see Art.HatShapes).
     /// </summary>
     public sealed class SkinDef
     {
         public string Name;
-        public int UnlockBest;
+        public int UnlockBest;   // legacy: skins reached with this best score before the coin shop are granted for free
+        public int Price;        // coins
         public string Body, BodyLight, BodyShade, Beak, BeakShade, Cheek, Wing, WingShade;
         public string[] Scarf; // main, dark, light — null for no scarf
         public HatKind Hat;
@@ -26,7 +27,7 @@ namespace TapOrDrag
         {
             new SkinDef
             {
-                Name = "CHICK", UnlockBest = 0,
+                Name = "CHICK", UnlockBest = 0, Price = 0,
                 Skill = SkillKind.None, SkillText = "NO SKILL", SkillColor = "c9b6f0",
                 Body = "ffd23f", BodyLight = "fff3a8", BodyShade = "f09a1e", Beak = "ff7b2e", BeakShade = "d9481f",
                 Cheek = "ff8fb0", Wing = "fffbe8", WingShade = "f5c86b",
@@ -39,7 +40,7 @@ namespace TapOrDrag
             },
             new SkinDef
             {
-                Name = "BLUEJAY", UnlockBest = 25,
+                Name = "BLUEJAY", UnlockBest = 25, Price = 100,
                 Skill = SkillKind.Shield, SkillText = "SHIELD: BLOCKS 1 HIT", SkillColor = "3ff0ff",
                 Body = "4fa8ff", BodyLight = "c4e6ff", BodyShade = "2e6fd1", Beak = "ffb03a", BeakShade = "d97a1e",
                 Cheek = "ff9ac0", Wing = "ffffff", WingShade = "b9dcff",
@@ -49,7 +50,7 @@ namespace TapOrDrag
             },
             new SkinDef
             {
-                Name = "FLAMINGO", UnlockBest = 50,
+                Name = "FLAMINGO", UnlockBest = 50, Price = 250,
                 Skill = SkillKind.RoyalCombo, SkillText = "FAST COMBO + SOFT MISS", SkillColor = "ff8fc4",
                 Body = "ff8fc4", BodyLight = "ffd1e6", BodyShade = "e0609e", Beak = "fff1e6", BeakShade = "2a1633",
                 Cheek = "ff5f8f", Wing = "fff0f7", WingShade = "ffb3d6",
@@ -59,7 +60,7 @@ namespace TapOrDrag
             },
             new SkinDef
             {
-                Name = "NINJA", UnlockBest = 100,
+                Name = "NINJA", UnlockBest = 100, Price = 500,
                 Skill = SkillKind.ShadowDash, SkillText = "DASH THROUGH PIPES", SkillColor = "b58cff",
                 Body = "5a5478", BodyLight = "8a82b0", BodyShade = "3a3552", Beak = "ffb03a", BeakShade = "d97a1e",
                 Cheek = "7a5a9a", Wing = "8a82b0", WingShade = "5a5478",
@@ -69,7 +70,7 @@ namespace TapOrDrag
             },
             new SkinDef
             {
-                Name = "ROBO", UnlockBest = 200,
+                Name = "ROBO", UnlockBest = 200, Price = 900,
                 Skill = SkillKind.AntiGrav, SkillText = "LOW GRAVITY", SkillColor = "8fe8ff",
                 Body = "b8c4d6", BodyLight = "eef4ff", BodyShade = "7c8aa6", Beak = "ffd23f", BeakShade = "d99a1e",
                 Cheek = "3ff0ff", Wing = "dfe8f5", WingShade = "9aa8c0",
@@ -79,7 +80,7 @@ namespace TapOrDrag
             },
             new SkinDef
             {
-                Name = "GOLD", UnlockBest = 400,
+                Name = "GOLD", UnlockBest = 400, Price = 1500,
                 Skill = SkillKind.Midas, SkillText = "DOUBLE POINTS", SkillColor = "ffd23f",
                 Body = "ffcf40", BodyLight = "fffbd0", BodyShade = "c98a18", Beak = "ff6a2a", BeakShade = "c8401e",
                 Cheek = "ff8fb0", Wing = "fff3b0", WingShade = "e8b43a",

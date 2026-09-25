@@ -12,7 +12,8 @@ namespace TapOrDrag
         AudioSource[] voices;
         int nextVoice;
         float musicTarget = MusicVolume;
-        AudioClip flap, pass, combo, dash, gateBreak, stomp, shieldPop, skillReady, feverStart, feverEnd, perfect, closeCall, smash, miss, hit, zap, fall, thud, gameOver, newBest, click, start;
+        AudioClip flap, pass, combo, dash, gateBreak, stomp, shieldPop, skillReady, feverStart, feverEnd, perfect, closeCall, smash,
+            coin, switchFlip, biome, mission, purchase, portalUp, portalDown, switchToggle, miss, hit, zap, fall, thud, gameOver, newBest, click, start;
 
         public bool Muted { get; private set; }
 
@@ -51,6 +52,27 @@ namespace TapOrDrag
             smash = Synth.Clip("Smash", Synth.Seq(
                 (0f, Synth.Tone(0.14f, 3000f, 500f, W.Noise, 0.32f)),
                 (0f, Synth.Tone(0.12f, 220f, 70f, W.Square, 0.2f))));
+            coin = Synth.Clip("Coin", Synth.Seq(
+                (0f, Synth.Tone(0.035f, 1568f, 1568f, W.Square, 0.1f, 0.25f)),
+                (0.035f, Synth.Tone(0.1f, 2093f, 2093f, W.Square, 0.1f, 0.25f, 1.2f))));
+            switchFlip = Synth.Clip("SwitchFlip", Synth.Tone(0.14f, 400f, 1300f, W.Square, 0.13f, 0.125f, vibratoHz: 60f, vibratoDepth: 0.2f));
+            biome = Synth.Clip("Biome", Synth.Seq(
+                (0f, Synth.Tone(0.7f, 300f, 4000f, W.Noise, 0.1f, decay: 0.6f, curve: 0.6f)),
+                (0.1f, Synth.Arp(0.09f, new[] { 392f, 523f, 659f, 784f }, W.Triangle, 0.2f, decay: 0.8f))));
+            switchToggle = Synth.Clip("SwitchToggle", Synth.Seq(
+                (0f, Synth.Tone(0.05f, 660f, 660f, W.Square, 0.14f, 0.5f)),
+                (0.05f, Synth.Tone(0.09f, 990f, 990f, W.Square, 0.14f, 0.5f, 1.4f)),
+                (0f, Synth.Tone(0.04f, 3000f, 1500f, W.Noise, 0.1f))));
+            portalUp = Synth.Clip("PortalUp", Synth.Seq(
+                (0f, Synth.Tone(0.4f, 220f, 1320f, W.Sine, 0.3f, decay: 0.6f, curve: 0.7f, vibratoHz: 14f, vibratoDepth: 0.04f)),
+                (0f, Synth.Tone(0.35f, 800f, 5000f, W.Noise, 0.08f, decay: 0.8f))));
+            portalDown = Synth.Clip("PortalDown", Synth.Seq(
+                (0f, Synth.Tone(0.4f, 1320f, 220f, W.Sine, 0.3f, decay: 0.6f, curve: 0.7f, vibratoHz: 14f, vibratoDepth: 0.04f)),
+                (0f, Synth.Tone(0.35f, 5000f, 800f, W.Noise, 0.08f, decay: 0.8f))));
+            mission = Synth.Clip("Mission", Synth.Arp(0.07f, new[] { 784f, 988f, 1175f, 1568f }, W.Square, 0.13f, 0.25f));
+            purchase = Synth.Clip("Purchase", Synth.Seq(
+                (0f, Synth.Arp(0.06f, new[] { 1047f, 1319f, 1568f, 2093f, 2637f }, W.Square, 0.12f, 0.25f)),
+                (0f, Synth.Tone(0.4f, 3000f, 8000f, W.Noise, 0.06f))));
             skillReady = Synth.Clip("SkillReady", Synth.Arp(0.05f, new[] { 1319f, 1760f, 2637f }, W.Square, 0.12f, 0.25f));
             miss = Synth.Clip("Miss", Synth.Seq(
                 (0f, Synth.Tone(0.25f, 190f, 110f, W.Square, 0.18f, decay: 0.6f, vibratoHz: 20f, vibratoDepth: 0.1f)),
@@ -130,6 +152,13 @@ namespace TapOrDrag
         public void Perfect() => Play(perfect);
         public void CloseCall() => Play(closeCall, 0.9f);
         public void Smash() => Play(smash, 0.8f, Random.Range(0.9f, 1.15f));
+        public void Coin(int chain) => Play(coin, 0.7f, 1f + 0.05f * Mathf.Min(chain, 10));
+        public void SwitchFlip() => Play(switchFlip);
+        public void Biome() => Play(biome, 0.8f);
+        public void Mission() => Play(mission);
+        public void SwitchToggle(int state) => Play(switchToggle, 0.9f, state == 0 ? 1f : 0.8f);
+        public void Portal(bool inverted) => Play(inverted ? portalUp : portalDown);
+        public void Purchase() => Play(purchase);
         public void SetMusicPitch(float pitch) { if (music != null) music.pitch = pitch; }
         public void SkillReady() => Play(skillReady, 0.8f);
         public void Miss() => Play(miss);

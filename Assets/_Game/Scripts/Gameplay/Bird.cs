@@ -15,7 +15,7 @@ namespace TapOrDrag
         bool hatRigid;
         SpriteRenderer sr, scarf, hat, bubble;
         bool shieldOn, phasing;
-        float invulnerable, bubbleTime, feverScale = 1f, feverScaleTarget = 1f;
+        float invulnerable, bubbleTime, feverScale = 1f, feverScaleTarget = 1f, flipScale = 1f;
         float baseY, bobTime, wingPhase, wingBoost, blinkTimer, blinkLeft, tilt, hurtFlash, scarfPhase;
         float hatOffset, hatVelocity, hatLean, hatSpin;
         bool hatFlying;
@@ -33,6 +33,15 @@ namespace TapOrDrag
         public float GravityScale { get; set; } = 1f;
         public float FlapScale { get; set; } = 1f;
         public float FallScale { get; set; } = 1f;
+
+        /// <summary>+1 normal, -1 while a gravity portal has flipped gravity (gravity pulls up, flaps push down).</summary>
+        public float GravitySign { get; private set; } = 1f;
+
+        public void SetGravityInverted(bool inverted)
+        {
+            GravitySign = inverted ? -1f : 1f;
+            Vy *= -0.3f; // keep a little momentum, but in the new "up"
+        }
         public Vector2 Position => transform.position;
         public Sprite Silhouette => art.BirdSilhouette[WingFrame];
 
@@ -76,6 +85,7 @@ namespace TapOrDrag
             invulnerable = 0f;
             phasing = false;
             feverScale = feverScaleTarget = 1f;
+            GravitySign = flipScale = 1f;
             blinkTimer = Random.Range(1.5f, 3.5f);
 
             hatFlying = false;
@@ -129,7 +139,7 @@ namespace TapOrDrag
 
         public void Flap()
         {
-            Vy = cfg.flapVelocity * FlapScale;
+            Vy = cfg.flapVelocity * FlapScale * GravitySign;
             wingBoost = 1f;
             wingPhase = 0f;
             squash = new Vector2(0.78f, 1.25f);
@@ -146,7 +156,7 @@ namespace TapOrDrag
         public void EndDash()
         {
             Dashing = false;
-            Vy = 1.5f;
+            Vy = 1.5f * GravitySign;
             squash = new Vector2(0.9f, 1.1f);
         }
 
@@ -162,6 +172,7 @@ namespace TapOrDrag
         {
             Dead = true;
             Dashing = false;
+            GravitySign = 1f; // the dead bird just falls
             Vy = knockVy;
             hurtFlash = 0.3f;
             Grounded = false;
@@ -188,10 +199,12 @@ namespace TapOrDrag
         {
             if (!Dashing)
             {
-                Vy = Mathf.Max(Vy - cfg.gravity * GravityScale * dt, -cfg.maxFallSpeed * FallScale);
+                float maxFall = cfg.maxFallSpeed * FallScale;
+                Vy = Mathf.Clamp(Vy - cfg.gravity * GravityScale * GravitySign * dt, GravitySign > 0f ? -maxFall : -1000f, GravitySign > 0f ? 1000f : maxFall);
                 transform.position += new Vector3(0f, Vy * dt, 0f);
             }
-            float target = Dashing ? 0f : Mathf.Clamp(Vy * 4.2f + 10f, -80f, 28f);
+            // Nose follows the motion relative to the current gravity; mirrored when upside down.
+            float target = Dashing ? 0f : GravitySign * Mathf.Clamp(Vy * GravitySign * 4.2f + 10f, -80f, 28f);
             tilt = Mathf.MoveTowards(tilt, target, (target > tilt ? 720f : 300f) * dt);
             Animate(dt, Dashing ? 0f : 6f + wingBoost * 22f);
         }
@@ -247,7 +260,8 @@ namespace TapOrDrag
             var rest = Dashing ? new Vector2(1.25f, 0.82f) : Vector2.one;
             squash = Vector2.Lerp(squash, rest, 1f - Mathf.Exp(-14f * dt));
             feverScale = Mathf.MoveTowards(feverScale, feverScaleTarget, dt * 3f);
-            transform.localScale = new Vector3(squash.x * feverScale, squash.y * feverScale, 1f);
+            flipScale = Mathf.MoveTowards(flipScale, GravitySign, dt * 10f); // quick flip through the horizontal axis
+            transform.localScale = new Vector3(squash.x * feverScale, squash.y * feverScale * flipScale, 1f);
             transform.rotation = Quaternion.Euler(0f, 0f, tilt);
             sr.sprite = skin.Frames[WingFrame, eyesClosed ? 1 : 0];
 

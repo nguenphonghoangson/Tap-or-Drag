@@ -57,6 +57,60 @@ namespace TapOrDrag
         public int enemyDodgePoints = 1;
         public int enemyStompPoints = 3;
 
+        [Header("Red gates (fly through the gap, do NOT dash) and switch gates (flip mode when close)")]
+        public int firstRedGateAt = 12;
+        [Range(0f, 1f)] public float redGateChance = 0.12f;
+        public int firstSwitchGateAt = 20;
+        [Range(0f, 1f)] public float switchGateChance = 0.08f;
+        public float redGateGap = 4f;
+        public int redGatePoints = 2;
+        public int switchGateBonus = 1;
+        [Tooltip("Distance ahead of the bird at which a switch gate flips (it flickers for 1.3 units before).")]
+        public float switchFlipDistance = 3.4f;
+        [Tooltip("Show the NO SWIPE hint until the player has passed this many red gates in total.")]
+        public int noSwipeHintUntil = 3;
+
+        [Header("Gravity portals (flip gravity for a short section, then a second portal flips it back)")]
+        public int firstPortalAt = 16;
+        [Range(0f, 1f)] public float portalChance = 0.07f;
+        [Tooltip("Obstacles in a flipped section before the return portal.")]
+        public int flippedSectionLength = 5;
+        public float portalSpacingBefore = 3.2f;
+        public float portalSpacingAfter = 5f;
+        [Tooltip("Real-time seconds of slow motion when gravity flips, to let the player re-orient.")]
+        public float flipSlowMo = 0.2f;
+        [Tooltip("Show the TAP PUSHES DOWN reminder for this many flips in total.")]
+        public int flipHintUntil = 2;
+
+        [Header("Switch walls (every swipe toggles GOLD/BLUE; walls of the active colour are solid)")]
+        public int firstSwitchWallAt = 24;
+        [Range(0f, 1f)] public float switchWallChance = 0.1f;
+        public int switchWallPoints = 2;
+        public float switchWallSpacingBefore = 4f;
+        public float switchWallSpacingAfter = 5.5f;
+        [Tooltip("Show the SWIPE TO SWITCH hint until the player has passed this many switch walls in total.")]
+        public int switchHintUntil = 3;
+
+        [Header("Patterns (short tight sequences that force quick input changes)")]
+        public int firstPatternAt = 10;
+        [Range(0f, 1f)] public float patternChance = 0.2f;
+        public float patternSpacingScale = 0.85f;
+
+        [Header("Coins")]
+        [Range(0f, 1f)] public float coinInGapChance = 0.7f;
+        [Range(0f, 1f)] public float coinArcChance = 0.4f;
+        public float coinPickupRadius = 0.35f;
+        [Tooltip("During Fever, coins within this distance fly to the bird.")]
+        public float coinMagnetRange = 3f;
+
+        [Header("Biomes (dusk > night > neon city > space, cycling)")]
+        public int biomeEveryClears = 20;
+        public float biomeFadeSeconds = 1.5f;
+
+        [Header("Title screen")]
+        [Tooltip("Show daily missions instead of the controls tutorial after this many runs.")]
+        public int missionsAfterRuns = 3;
+
         [Header("Score")]
         public int pipePoints = 1;
         public int gatePoints = 2;
@@ -66,7 +120,7 @@ namespace TapOrDrag
 
         [Header("Fever (reach the combo, smash everything for a few seconds)")]
         public int feverAtMultiplier = 5;
-        [Tooltip("After a Fever ends, this many more consecutive clears are needed before the next one.")]
+        [Tooltip("After a Fever ends, this many clears must pass before the next one (misses and shield hits do not shorten it).")]
         public int feverRechargeClears = 10;
         public float feverDuration = 5f;
         public float feverSpeedScale = 1.3f;
