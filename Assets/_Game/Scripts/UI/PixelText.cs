@@ -53,6 +53,13 @@ namespace TapOrDrag
             Refresh();
         }
 
+        public void SetScale(int value)
+        {
+            if (value == scale) return;
+            scale = value;
+            Refresh();
+        }
+
         public void SetColor(Color32 value)
         {
             if (value.Equals(color)) return;

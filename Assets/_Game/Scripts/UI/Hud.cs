@@ -13,7 +13,8 @@ namespace TapOrDrag
         static readonly Vector2 TopRight = new Vector2(1f, 1f);
         static readonly Vector2 Mid = new Vector2(0.5f, 0.5f);
 
-        const float ComboY = -136f;
+        const float ComboY = -136f, ShooterComboY = -104f;
+        float comboY = ComboY;
 
         Art art;
         AudioManager audioManager;
@@ -298,10 +299,10 @@ namespace TapOrDrag
             if (comboBreak > 0f)
             {
                 comboBreak -= dt;
-                combo.Rect.anchoredPosition = new Vector2(Random.Range(-6f, 6f), ComboY);
+                combo.Rect.anchoredPosition = new Vector2(Random.Range(-6f, 6f), comboY);
                 if (comboBreak <= 0f) combo.Visible = false;
             }
-            else combo.Rect.anchoredPosition = new Vector2(0f, ComboY);
+            else combo.Rect.anchoredPosition = new Vector2(0f, comboY);
 
             if (toastTime > 0f)
             {

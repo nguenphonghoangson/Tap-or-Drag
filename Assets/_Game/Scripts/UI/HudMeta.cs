@@ -84,10 +84,12 @@ namespace TapOrDrag
 
         // ---------------------------------------------------------------- coins & shop
 
+        float coinY = -50f; // -12 in the shooter HUD (best score hidden there)
+
         public void SetCoins(int total, bool pulse)
         {
             coinText.Set(total.ToString());
-            coinIcon.rectTransform.anchoredPosition = new Vector2(-12f - coinText.Width - 4f, -50f - (coinText.Height - coinIcon.rectTransform.sizeDelta.y) * 0.5f);
+            coinIcon.rectTransform.anchoredPosition = new Vector2(-12f - coinText.Width - 4f, coinY - (coinText.Height - coinIcon.rectTransform.sizeDelta.y) * 0.5f);
             if (pulse) coinPulse = 1f;
         }
 

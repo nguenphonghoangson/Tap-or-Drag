@@ -10,7 +10,7 @@ namespace TapOrDrag
     public partial class Hud
     {
         const int MaxHeartIcons = 8, HeartsPerRow = 4;
-        const float BossBarWidth = 254f;
+        const float BossBarWidth = 144f, BossBarY = -60f, BossLabelY = -78f; // bar right under the score, name below it
         static readonly Vector2 BottomLeft = new Vector2(0f, 0f);
         static readonly Vector2 BottomRight = new Vector2(1f, 0f);
 
@@ -50,12 +50,12 @@ namespace TapOrDrag
             for (int i = 0; i < MaxHeartIcons; i++)
             {
                 heartIcons[i] = NewImage(playGroup, "Heart" + i, art.IconHeart, 3f, TopLeft, TopLeft,
-                    new Vector2(12f + i % HeartsPerRow * 28f, -60f - i / HeartsPerRow * 26f));
+                    new Vector2(12f + i % HeartsPerRow * 28f, -12f - i / HeartsPerRow * 26f));
                 heartIcons[i].gameObject.SetActive(false);
             }
-            weaponText = PixelText.Create(playGroup, "Weapon", "BLASTER LV1", Pal.OrangeLight, 2, TopLeft, TopLeft, new Vector2(12f, -120f));
+            weaponText = PixelText.Create(playGroup, "Weapon", "BLASTER LV1", Pal.OrangeLight, 2, TopRight, TopRight, new Vector2(-12f, -40f));
             weaponText.Visible = false;
-            waveText = PixelText.Create(playGroup, "Wave", "WAVE 1", Pal.Lilac, 2, TopLeft, TopLeft, new Vector2(12f, -140f));
+            waveText = PixelText.Create(playGroup, "Wave", "WAVE 1", Pal.Lilac, 2, TopRight, TopRight, new Vector2(-12f, -60f));
             waveText.Visible = false;
 
             // Active buffs, right-aligned under the bone counter. Order matches ShooterGame.Buff* bits.
@@ -68,8 +68,8 @@ namespace TapOrDrag
             }
 
             // Boss bar: name, frame, fill, and a tick at 50% where phase 2 starts.
-            bossLabel = PixelText.Create(playGroup, "BossLabel", "CAT MOTHERSHIP", Pal.Rose, 2, Top, Top, new Vector2(0f, -176f));
-            bossBack = NewImage(playGroup, "BossBarBack", null, 1f, Top, Top, new Vector2(0f, -198f));
+            bossLabel = PixelText.Create(playGroup, "BossLabel", "CAT MOTHERSHIP", Pal.Rose, 2, Top, Top, new Vector2(0f, BossLabelY));
+            bossBack = NewImage(playGroup, "BossBarBack", null, 1f, Top, Top, new Vector2(0f, BossBarY));
             bossBack.rectTransform.sizeDelta = new Vector2(BossBarWidth + 6f, 14f);
             bossBack.color = new Color(0.08f, 0.04f, 0.14f, 0.85f);
             bossFill = NewImage(bossBack.transform, "Fill", null, 1f, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(3f, 0f));
@@ -147,6 +147,20 @@ namespace TapOrDrag
             feverMeterLabel.Visible = !on;
             skillButton.gameObject.SetActive(on);
             bombButton.gameObject.SetActive(on);
+
+            // Side layout: keep the top-centre clear for the score and boss bar. Settings buttons and the best
+            // score (title-screen info) step aside during a shooter run; bones move up into the freed corner.
+            muteButton.gameObject.SetActive(!on);
+            hapticButton.gameObject.SetActive(!on);
+            best.Visible = !on;
+            crown.enabled = !on;
+            score.SetScale(on ? 5 : 7);
+            score.Rect.anchoredPosition = new Vector2(0f, on ? -12f : -54f);
+            comboY = on ? ShooterComboY : ComboY;
+            coinY = on ? -12f : -50f;
+            coinText.Rect.anchoredPosition = new Vector2(-12f, coinY);
+            SetCoins(Economy.Coins, false);
+
             if (on)
             {
                 switchBadge.gameObject.SetActive(false);
@@ -180,17 +194,17 @@ namespace TapOrDrag
                 : weaponName == "WAVE" ? Art.WaveColor : Pal.OrangeLight);
         }
 
-        /// <summary>Bit mask of ShooterGame.Buff* values; icons pack from the right.</summary>
+        /// <summary>Bit mask of ShooterGame.Buff* values; icons stack down the right edge under the weapon and wave lines.</summary>
         public void SetBuffIcons(int mask)
         {
-            float x = -12f;
+            float y = -84f;
             for (int i = 0; i < buffIcons.Length; i++)
             {
                 bool on = (mask & (1 << i)) != 0;
                 buffIcons[i].enabled = on;
                 if (!on) continue;
-                buffIcons[i].rectTransform.anchoredPosition = new Vector2(x, -84f);
-                x -= buffIcons[i].rectTransform.sizeDelta.x + 6f;
+                buffIcons[i].rectTransform.anchoredPosition = new Vector2(-12f, y);
+                y -= buffIcons[i].rectTransform.sizeDelta.y + 6f;
             }
         }
 
@@ -244,7 +258,7 @@ namespace TapOrDrag
                 bossPunch = Mathf.MoveTowards(bossPunch, 0f, dt * 8f);
                 Color baseColor = bossFrac > 0.5f ? (Color)bossColor : (((int)(time * 6f) & 1) == 0 ? (Color)Pal.Red : new Color(0.75f, 0.1f, 0.2f));
                 bossFill.color = Color.Lerp(baseColor, Color.white, bossPunch * 0.7f);
-                bossBack.rectTransform.anchoredPosition = new Vector2(bossPunch > 0.5f ? Random.Range(-2f, 2f) : 0f, -198f);
+                bossBack.rectTransform.anchoredPosition = new Vector2(bossPunch > 0.5f ? Random.Range(-2f, 2f) : 0f, BossBarY);
             }
 
             if (warningTime > 0f)
