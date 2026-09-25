@@ -51,13 +51,16 @@ namespace TapOrDrag.EditorTools
         [MenuItem("Tap Or Drag/Game View 405x820 (Portrait)")]
         static void MenuGameView() => SetGameView(true);
 
-        [MenuItem("Tap Or Drag/Reset Progress (best, coins, skins, missions)")]
+        [MenuItem("Tap Or Drag/Reset Progress (best, coins, skins, missions, hangar)")]
         static void ResetBest()
         {
             foreach (var key in new[] { "TapOrDrag.Best", "TapOrDrag.GatesCleared", "TapOrDrag.Skin", "TapOrDrag.Runs", "TapOrDrag.RedGatesPassed" })
                 PlayerPrefs.DeleteKey(key);
             Economy.ResetAll();
             Missions.ResetAll();
+            ShipUpgrades.ResetAll();
+            Inventory.ResetAll();
+            PlayerPrefs.DeleteKey("TapOrDrag.BestShooter");
             PlayerPrefs.Save();
             Debug.Log("[TapOrDrag] Progress reset (best score, coins, owned skins, missions, tutorial).");
         }

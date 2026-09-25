@@ -338,6 +338,8 @@ namespace TapOrDrag
             flash.enabled = flashAlpha > 0f;
 
             TickMeta(dt);
+            TickShooterUi(dt);
+            TickHangar(dt);
         }
 
         void LateUpdate()

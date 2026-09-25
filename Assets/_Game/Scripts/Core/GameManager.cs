@@ -323,6 +323,7 @@ namespace TapOrDrag
             switch (state)
             {
                 case GameState.Ready:
+                    if (hud.HangarOpen) break;
                     if (mode == GameMode.Shooter) StartShooter();
                     else StartRun();
                     break;
@@ -906,8 +907,12 @@ namespace TapOrDrag
             var def = SkinDef.All[skinIndex];
             bool locked = !IsSkinUnlocked(skinIndex);
             bird.ApplySkin(art.Skins[skinIndex], locked);
-            bird.SetShield(def.Skill == SkillKind.Shield && !locked); // preview the bubble on the title screen
-            hud.SetSkin(def.Name, !locked, def.Price, Economy.Coins >= def.Price, skinIndex, art.Skins.Length, def.SkillText, Pal.Hex(def.SkillColor));
+            bool shooterMode = mode == GameMode.Shooter;
+            bird.SetShield(!shooterMode && def.Skill == SkillKind.Shield && !locked); // preview the bubble on the title screen
+            // DOG BLAST shows the ship skill instead of the flappy skill.
+            string skillText = shooterMode ? def.ShipSkillText : def.SkillText;
+            Color32 skillColor = shooterMode ? Art.PelletColor : Pal.Hex(def.SkillColor);
+            hud.SetSkin(def.Name, !locked, def.Price, Economy.Coins >= def.Price, skinIndex, art.Skins.Length, skillText, skillColor);
         }
 
         /// <summary>Title-screen skin browsing. Unlocked skins are equipped (and saved) immediately; locked ones are only previewed.</summary>

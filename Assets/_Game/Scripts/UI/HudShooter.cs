@@ -3,19 +3,30 @@ using UnityEngine.UI;
 
 namespace TapOrDrag
 {
-    /// <summary>UI for the mode selector on the title screen and the DOG BLAST shooter HUD (hearts, power, boss bar).</summary>
+    /// <summary>
+    /// UI for the mode selector on the title screen and the DOG BLAST shooter HUD: hearts, weapon, buff icons,
+    /// skill and bomb buttons, and the boss health bar with its phase marker and WARNING banner.
+    /// </summary>
     public partial class Hud
     {
-        const int MaxHeartIcons = 5;
+        const int MaxHeartIcons = 8, HeartsPerRow = 4;
+        const float BossBarWidth = 254f;
+        static readonly Vector2 BottomLeft = new Vector2(0f, 0f);
+        static readonly Vector2 BottomRight = new Vector2(1f, 0f);
 
-        PixelText titleTop, titleMid, titleBottom, powerText, bossLabel;
-        RectTransform modePrev, modeNext;
-        Image shooterPanel, bossBack, bossFill;
+        PixelText titleTop, titleMid, titleBottom, weaponText, bossLabel, skillLabel, skillReadyText, bombCount, warningText, warningName;
+        RectTransform modePrev, modeNext, hangarButton, skillButton, bombButton;
+        Image shooterPanel, bossBack, bossFill, bossPhaseTick, skillFill, bombIcon;
         readonly Image[] heartIcons = new Image[MaxHeartIcons];
-        bool shooterHud;
+        Image[] buffIcons;
+        Sprite[] buffSprites;
+        Color32 bossColor = Pal.Rose;
+        bool shooterHud, skillReady;
+        float bossFrac, bossPunch, warningTime, skillPunch;
 
         /// <summary>Raised by the mode arrows on the title screen.</summary>
         public event System.Action<int> ModeStepRequested;
+        public event System.Action SkillPressed, BombPressed;
 
         void BuildShooterUi()
         {
@@ -26,30 +37,70 @@ namespace TapOrDrag
             shooterPanel = NewImage(readyGroup, "ShooterTutorial", art.Panel, 1f, BottomMid, BottomMid, new Vector2(0f, 180f));
             shooterPanel.type = Image.Type.Sliced;
             shooterPanel.rectTransform.sizeDelta = new Vector2(300f, 136f);
-            PixelText.Create(shooterPanel.transform, "Move", "DRAG TO MOVE", Pal.OrangeLight, 3, Top, Top, new Vector2(0f, -22f));
-            PixelText.Create(shooterPanel.transform, "Fire", "AUTO FIRE!", Art.PelletColor, 3, Top, Top, new Vector2(0f, -58f));
-            PixelText.Create(shooterPanel.transform, "Goal", "STOP THE CAT INVASION", Pal.Lilac, 2, Top, Top, new Vector2(0f, -100f));
+            PixelText.Create(shooterPanel.transform, "Move", "DRAG TO MOVE", Pal.OrangeLight, 3, Top, Top, new Vector2(0f, -18f));
+            PixelText.Create(shooterPanel.transform, "Fire", "AUTO FIRE - STOP THE CATS", Art.PelletColor, 2, Top, Top, new Vector2(0f, -50f));
+            hangarButton = NewButton(shooterPanel.transform, "Hangar", BottomMid, new Vector2(0f, 36f), new Vector2(200f, 46f), () => HangarOpenRequested?.Invoke());
+            AddPanel(hangarButton);
+            PixelText.Create(hangarButton, "Label", "HANGAR", Pal.Gold, 3, Mid, Mid, Vector2.zero);
             shooterPanel.gameObject.SetActive(false);
 
+            // Hearts: two rows of four so armor upgrades still fit left of the score.
             for (int i = 0; i < MaxHeartIcons; i++)
             {
-                heartIcons[i] = NewImage(playGroup, "Heart" + i, art.IconHeart, 3f, TopLeft, TopLeft, new Vector2(12f + i * 28f, -60f));
+                heartIcons[i] = NewImage(playGroup, "Heart" + i, art.IconHeart, 3f, TopLeft, TopLeft,
+                    new Vector2(12f + i % HeartsPerRow * 28f, -60f - i / HeartsPerRow * 26f));
                 heartIcons[i].gameObject.SetActive(false);
             }
-            powerText = PixelText.Create(playGroup, "Power", "POWER 1", Pal.OrangeLight, 2, TopLeft, TopLeft, new Vector2(12f, -94f));
-            powerText.Visible = false;
+            weaponText = PixelText.Create(playGroup, "Weapon", "BLASTER LV1", Pal.OrangeLight, 2, TopLeft, TopLeft, new Vector2(12f, -120f));
+            weaponText.Visible = false;
 
+            // Active buffs, right-aligned under the bone counter. Order matches ShooterGame.Buff* bits.
+            buffSprites = new[] { art.IconMagnet, art.IconRapid, art.IconWingman, art.IconShieldItem, art.IconGold, art.IconWarp, art.IconShieldItem };
+            buffIcons = new Image[buffSprites.Length];
+            for (int i = 0; i < buffIcons.Length; i++)
+            {
+                buffIcons[i] = NewImage(playGroup, "Buff" + i, buffSprites[i], 3f, TopRight, TopRight, Vector2.zero);
+                buffIcons[i].enabled = false;
+            }
+
+            // Boss bar: name, frame, fill, and a tick at 50% where phase 2 starts.
             bossLabel = PixelText.Create(playGroup, "BossLabel", "CAT MOTHERSHIP", Pal.Rose, 2, Top, Top, new Vector2(0f, -176f));
             bossBack = NewImage(playGroup, "BossBarBack", null, 1f, Top, Top, new Vector2(0f, -198f));
-            bossBack.rectTransform.sizeDelta = new Vector2(260f, 14f);
+            bossBack.rectTransform.sizeDelta = new Vector2(BossBarWidth + 6f, 14f);
             bossBack.color = new Color(0.08f, 0.04f, 0.14f, 0.85f);
             bossFill = NewImage(bossBack.transform, "Fill", null, 1f, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(3f, 0f));
-            bossFill.rectTransform.sizeDelta = new Vector2(254f, 8f);
-            bossFill.color = Pal.Rose;
+            bossFill.rectTransform.sizeDelta = new Vector2(BossBarWidth, 8f);
+            bossPhaseTick = NewImage(bossBack.transform, "PhaseTick", null, 1f, Mid, Mid, Vector2.zero);
+            bossPhaseTick.rectTransform.sizeDelta = new Vector2(2f, 14f);
+            bossPhaseTick.color = Pal.White;
             ShowBossBar(false, 0f);
+
+            warningText = PixelText.Create(playGroup, "Warning", "WARNING", Pal.Red, 6, Mid, Mid, new Vector2(0f, 60f));
+            warningName = PixelText.Create(playGroup, "WarningName", "", Pal.White, 3, Mid, Mid, new Vector2(0f, 10f));
+            warningText.Visible = warningName.Visible = false;
+
+            // Skill button (bottom-right): fills from the bottom as kills charge it, pulses when ready.
+            skillButton = NewButton(playGroup, "Skill", BottomRight, new Vector2(-58f, 62f), new Vector2(92f, 92f), () => SkillPressed?.Invoke());
+            AddPanel(skillButton);
+            skillFill = NewImage(skillButton, "Charge", null, 1f, BottomMid, BottomMid, new Vector2(0f, 6f));
+            skillFill.color = new Color(Art.PelletColor.r / 255f, Art.PelletColor.g / 255f, Art.PelletColor.b / 255f, 0.45f);
+            skillLabel = PixelText.Create(skillButton, "Label", "SKILL", Pal.White, 2, Mid, Mid, new Vector2(0f, 10f));
+            skillReadyText = PixelText.Create(skillButton, "Ready", "0%", Pal.Lilac, 2, Mid, Mid, new Vector2(0f, -16f));
+
+            // Bomb button (bottom-left) with the count of run pickups + hangar bombs.
+            bombButton = NewButton(playGroup, "Bomb", BottomLeft, new Vector2(52f, 56f), new Vector2(80f, 80f), () => BombPressed?.Invoke());
+            AddPanel(bombButton);
+            bombIcon = NewImage(bombButton, "Icon", art.IconBomb, 5f, Mid, Mid, new Vector2(0f, 8f));
+            bombCount = PixelText.Create(bombButton, "Count", "X0", Pal.White, 2, BottomMid, BottomMid, new Vector2(0f, 8f));
+            skillButton.gameObject.SetActive(false);
+            bombButton.gameObject.SetActive(false);
+
+            BuildHangar();
         }
 
-        bool ShooterButtonHit(Vector2 screenPos) => Hit(modePrev, screenPos) || Hit(modeNext, screenPos);
+        bool ShooterButtonHit(Vector2 screenPos) =>
+            Hit(modePrev, screenPos) || Hit(modeNext, screenPos) || Hit(hangarButton, screenPos)
+            || Hit(skillButton, screenPos) || Hit(bombButton, screenPos) || HangarButtonHit(screenPos);
 
         public void SetMode(bool shooter)
         {
@@ -64,14 +115,22 @@ namespace TapOrDrag
         public void SetShooterHud(bool on)
         {
             shooterHud = on;
-            powerText.Visible = on;
+            weaponText.Visible = on;
             feverBarBack.enabled = feverBarFill.enabled = !on;
             feverMeterLabel.Visible = !on;
+            skillButton.gameObject.SetActive(on);
+            bombButton.gameObject.SetActive(on);
             if (on)
             {
                 switchBadge.gameObject.SetActive(false);
                 SetHint(false, "", Pal.White);
                 SetMeteorWarning(false, 0f, false);
+            }
+            else
+            {
+                warningTime = 0f;
+                warningText.Visible = warningName.Visible = false;
+                SetBuffIcons(0);
             }
             for (int i = 0; i < MaxHeartIcons; i++) heartIcons[i].gameObject.SetActive(false);
         }
@@ -85,13 +144,94 @@ namespace TapOrDrag
             }
         }
 
-        public void SetPower(int level) => powerText.Set(level >= 4 ? "POWER MAX" : "POWER " + level);
+        public void SetWeapon(string weaponName, int level)
+        {
+            weaponText.Set(weaponName + (level >= 4 ? " MAX" : " LV" + level));
+            weaponText.SetColor(weaponName == "HOMING" ? Art.HomingColor : weaponName == "PLASMA" ? Art.PlasmaColor
+                : weaponName == "WAVE" ? Art.WaveColor : Pal.OrangeLight);
+        }
+
+        /// <summary>Bit mask of ShooterGame.Buff* values; icons pack from the right.</summary>
+        public void SetBuffIcons(int mask)
+        {
+            float x = -12f;
+            for (int i = 0; i < buffIcons.Length; i++)
+            {
+                bool on = (mask & (1 << i)) != 0;
+                buffIcons[i].enabled = on;
+                if (!on) continue;
+                buffIcons[i].rectTransform.anchoredPosition = new Vector2(x, -84f);
+                x -= buffIcons[i].rectTransform.sizeDelta.x + 6f;
+            }
+        }
+
+        public void SetSkillCharge(float charge01, bool ready, string label)
+        {
+            if (ready && !skillReady) skillPunch = 1f;
+            skillReady = ready;
+            skillLabel.Set(label);
+            skillReadyText.Set(ready ? "READY" : Mathf.FloorToInt(charge01 * 100f) + "%");
+            skillReadyText.SetColor(ready ? Pal.Gold : Pal.Lilac);
+            skillFill.rectTransform.sizeDelta = new Vector2(80f, 80f * Mathf.Clamp01(charge01));
+        }
+
+        public void SetBombs(int count)
+        {
+            bombCount.Set("X" + count);
+            bombIcon.color = count > 0 ? Color.white : new Color(1f, 1f, 1f, 0.35f);
+        }
+
+        public void SetBossInfo(string bossName, Color32 color)
+        {
+            bossColor = color;
+            bossLabel.Set(bossName);
+            bossLabel.SetColor(color);
+        }
+
+        public void BossWarning(string bossName)
+        {
+            warningTime = 2.2f;
+            warningName.Set(bossName + " APPROACHING");
+        }
 
         public void ShowBossBar(bool on, float fill01)
         {
-            bossBack.enabled = bossFill.enabled = on;
+            bossBack.enabled = bossFill.enabled = bossPhaseTick.enabled = on;
             bossLabel.Visible = on;
-            bossFill.rectTransform.sizeDelta = new Vector2(254f * Mathf.Clamp01(fill01), 8f);
+            float frac = Mathf.Clamp01(fill01);
+            if (on && frac < bossFrac) bossPunch = 1f;
+            bossFrac = frac;
+            bossFill.rectTransform.sizeDelta = new Vector2(BossBarWidth * frac, 8f);
+            bossPhaseTick.enabled = on && frac > 0.5f; // marker disappears once phase 2 has started
+        }
+
+        void TickShooterUi(float dt)
+        {
+            if (!shooterHud) return;
+
+            // Boss bar: boss colour in phase 1, flashing red in phase 2, white blink on each hit.
+            if (bossFill.enabled)
+            {
+                bossPunch = Mathf.MoveTowards(bossPunch, 0f, dt * 8f);
+                Color baseColor = bossFrac > 0.5f ? (Color)bossColor : (((int)(time * 6f) & 1) == 0 ? (Color)Pal.Red : new Color(0.75f, 0.1f, 0.2f));
+                bossFill.color = Color.Lerp(baseColor, Color.white, bossPunch * 0.7f);
+                bossBack.rectTransform.anchoredPosition = new Vector2(bossPunch > 0.5f ? Random.Range(-2f, 2f) : 0f, -198f);
+            }
+
+            if (warningTime > 0f)
+            {
+                warningTime -= dt;
+                bool blink = ((int)(warningTime * 6f) & 1) == 0;
+                warningText.Visible = warningTime > 0f && blink;
+                warningName.Visible = warningTime > 0f;
+                warningText.Rect.localScale = Vector3.one * (1f + 0.06f * Mathf.Sin(time * 20f));
+            }
+
+            skillPunch = Mathf.MoveTowards(skillPunch, 0f, dt * 3f);
+            float pulse = skillReady ? 1f + 0.06f * Mathf.Sin(time * 10f) : 1f;
+            skillButton.localScale = Vector3.one * (pulse + 0.3f * skillPunch);
+            if (skillReady) skillFill.color = Color.Lerp(new Color(1f, 0.85f, 0.3f, 0.45f), new Color(1f, 1f, 1f, 0.6f), 0.5f + 0.5f * Mathf.Sin(time * 10f));
+            else skillFill.color = new Color(Art.PelletColor.r / 255f, Art.PelletColor.g / 255f, Art.PelletColor.b / 255f, 0.45f);
         }
     }
 }

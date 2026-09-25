@@ -9,6 +9,7 @@ namespace TapOrDrag
         public Sprite CatDrone, CatSaucer, CatBoss;
         public Sprite PlayerPellet, EnemyOrb, PowerCapsule, HeartPickup;
         public Sprite IconHeart, IconHeartEmpty;
+        public Sprite IconBomb, IconMagnet, IconRapid, IconWingman, IconShieldItem, IconLucky, IconWarp, IconGold, ShipLaser;
         public static readonly Color32 EnemyBulletColor = Pal.Hex("ff5f8f");
         public static readonly Color32 PelletColor = Pal.Hex("8ff6ff");
 
@@ -68,6 +69,34 @@ namespace TapOrDrag
             HeartPickup = OutlinedPalette(heart, new Dictionary<char, Color32> { { 'r', Pal.Red }, { 'h', Pal.Hex("ffb3c1") } });
             IconHeart = HeartPickup;
             IconHeartEmpty = OutlinedPalette(heart, new Dictionary<char, Color32> { { 'r', Pal.Hex("4a3560") }, { 'h', Pal.Hex("4a3560") } });
+
+            // Support items (pickups, buff icons, hangar icons).
+            IconBomb = OutlinedPalette(new[] { "....ff.", "...f...", ".kkk...", "kkhkk..", "kkkkk..", "kkkkk..", ".kkk..." },
+                new Dictionary<char, Color32> { { 'k', Pal.Hex("3b3552") }, { 'h', Pal.Hex("8a82b0") }, { 'f', Pal.Orange } });
+            IconMagnet = OutlinedPalette(new[] { "rr...rr", "rr...rr", "rr...rr", "rr...rr", ".rr.rr.", "..rrr..", "ww...ww" },
+                new Dictionary<char, Color32> { { 'r', Pal.Red }, { 'w', Pal.White } });
+            IconRapid = OutlinedPalette(new[] { "...yy", "..yy.", ".yyyy", "yyyy.", "..yy.", ".yy..", "yy..." },
+                new Dictionary<char, Color32> { { 'y', Pal.Gold } });
+            IconWingman = OutlinedPalette(new[] { "..c..", ".ccc.", "ccccc", "c.c.c", "..c.." },
+                new Dictionary<char, Color32> { { 'c', PelletColor } });
+            IconShieldItem = OutlinedPalette(new[] { ".bbbbb.", "bwbbbbb", "bwbbbbb", "bbbbbbb", ".bbbbb.", "..bbb..", "...b..." },
+                new Dictionary<char, Color32> { { 'b', Pal.Hex("3ff0ff") }, { 'w', Pal.White } });
+            IconLucky = OutlinedPalette(new[] { "yy...yy", "yyyyyyy", "yy...yy" }, new Dictionary<char, Color32> { { 'y', Pal.Gold } });
+            IconWarp = OutlinedPalette(new[] { "ppppp", ".ppp.", "..p..", ".ppp.", "ppppp" }, new Dictionary<char, Color32> { { 'p', PortalMain } });
+            IconGold = OutlinedPalette(new[] { ".yyy.", "yyYyy", "yYyyy", "yyyyy", ".yyy." },
+                new Dictionary<char, Color32> { { 'y', Pal.Gold }, { 'Y', Pal.White } });
+
+            // ROBO mega laser: 16x7 tile, drawn tiled and rotated to point up.
+            var laser = new PixelCanvas(16, 7);
+            for (int x = 0; x < 16; x++)
+            {
+                laser.Set(x, 0, Pal.Alpha(PelletColor, 80));
+                laser.Set(x, 1, Pal.Alpha(PelletColor, 170));
+                for (int y = 2; y <= 4; y++) laser.Set(x, y, (x + y) % 5 == 0 ? PelletColor : Pal.White);
+                laser.Set(x, 5, Pal.Alpha(PelletColor, 170));
+                laser.Set(x, 6, Pal.Alpha(PelletColor, 80));
+            }
+            ShipLaser = laser.ToSprite(Center);
         }
 
         static Sprite OutlinedPalette(string[] map, Dictionary<char, Color32> pal)

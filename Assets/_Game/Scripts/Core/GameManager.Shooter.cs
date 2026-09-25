@@ -34,11 +34,58 @@ namespace TapOrDrag
             mode = (GameMode)Mathf.Clamp(PlayerPrefs.GetInt(ModeKey, 0), 0, 1);
             bestShooter = PlayerPrefs.GetInt(BestShooterKey, 0);
             hud.ModeStepRequested += StepMode;
+            hud.SkillPressed += () => shooter.ActivateSkill();
+            hud.BombPressed += () => shooter.UseBomb();
+            hud.HangarOpenRequested += () => SetHangar(true);
+            hud.HangarCloseRequested += () => SetHangar(false);
+            hud.UpgradeBuyRequested += OnUpgradeBuy;
+            hud.ItemBuyRequested += OnItemBuy;
+            hud.ItemToggleRequested += item =>
+            {
+                Inventory.SetEnabled(item, !Inventory.IsEnabled(item));
+                sound.Click();
+                hud.RefreshHangar(Economy.Coins);
+            };
+        }
+
+        // ---------------------------------------------------------------- hangar
+
+        void SetHangar(bool open)
+        {
+            if (open && (state != GameState.Ready || mode != GameMode.Shooter)) return;
+            hud.ShowHangar(open, Economy.Coins);
+            sound.Click();
+        }
+
+        void OnUpgradeBuy(UpgradeStat stat)
+        {
+            if (ShipUpgrades.TryBuy(stat)) HangarPurchased();
+            else HangarPurchaseFailed(System.Array.IndexOf(ShipUpgrades.All, stat));
+        }
+
+        void OnItemBuy(ItemKind item)
+        {
+            if (Inventory.TryBuy(item)) HangarPurchased();
+            else HangarPurchaseFailed(System.Array.IndexOf(Inventory.All, item));
+        }
+
+        void HangarPurchased()
+        {
+            sound.Purchase();
+            hud.SetCoins(Economy.Coins, true);
+            hud.RefreshHangar(Economy.Coins);
+            ApplySkin(); // skin price affordability may have changed
+        }
+
+        void HangarPurchaseFailed(int row)
+        {
+            sound.Miss();
+            hud.HangarBuyFailed(row);
         }
 
         void StepMode(int direction)
         {
-            if (state != GameState.Ready) return;
+            if (state != GameState.Ready || hud.HangarOpen) return;
             mode = mode == GameMode.Flappy ? GameMode.Shooter : GameMode.Flappy;
             PlayerPrefs.SetInt(ModeKey, (int)mode);
             PlayerPrefs.Save();
@@ -53,6 +100,7 @@ namespace TapOrDrag
             hud.SetMode(shooterMode);
             hud.SetBest(shooterMode ? bestShooter : best, false);
             hud.SetReadyPanel(runsPlayed >= cfg.missionsAfterRuns, shooterMode);
+            ApplySkin(); // skill line switches between flappy and ship skills
         }
 
         /// <summary>Called from EnterReady: leave the shooter world and bring the flappy scenery back.</summary>
@@ -79,7 +127,8 @@ namespace TapOrDrag
             BeginRunMeta();
             background.gameObject.SetActive(false);
             hud.ShowPlaying();
-            shooter.Begin();
+            if (hud.HangarOpen) hud.ShowHangar(false, Economy.Coins);
+            shooter.Begin(SkinDef.All[equippedSkin]);
             sound.RunStart();
         }
 
