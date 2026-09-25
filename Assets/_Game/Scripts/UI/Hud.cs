@@ -27,9 +27,9 @@ namespace TapOrDrag
         Camera cam;
         Vector3 selectorWorld;
         Image crown, muteIcon, flash, feverOverlay, feverBarBack, feverBarFill;
-        PixelText feverText;
-        bool feverOn;
-        float feverProgress;
+        PixelText feverText, feverMeterLabel;
+        bool feverOn, meterRecharging;
+        float feverProgress, meterFill;
         Color flashColor = Color.white;
         float flashAlpha, time, scorePunch, comboPunch, bestPulse, comboBreak, toastTime, goTime;
         bool hintOn, newBestShown;
@@ -77,7 +77,7 @@ namespace TapOrDrag
             feverBarBack.color = new Color(0.08f, 0.04f, 0.14f, 0.75f);
             feverBarFill = NewImage(feverBarBack.transform, "Fill", null, 1f, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(3f, 0f));
             feverBarFill.rectTransform.sizeDelta = new Vector2(180f, 6f);
-            feverText.Visible = feverBarBack.enabled = feverBarFill.enabled = false;
+            feverMeterLabel = PixelText.Create(playGroup, "FeverMeter", "FEVER AT x5", Pal.Lilac, 2, Top, Top, new Vector2(0f, -214f));
             swipeHint = PixelText.Create(playGroup, "SwipeHint", "SWIPE >>", Art.GateMain[0], 4, BottomMid, BottomMid, new Vector2(0f, 150f));
             combo.Visible = toast.Visible = swipeHint.Visible = false;
 
@@ -244,11 +244,21 @@ namespace TapOrDrag
         public void SetFever(bool on)
         {
             feverOn = on;
-            feverText.Visible = feverBarBack.enabled = feverBarFill.enabled = feverOverlay.enabled = on;
+            feverText.Visible = feverOverlay.enabled = on;
+            feverMeterLabel.Visible = !on;
             if (on) comboPunch = 1f;
         }
 
         public void SetFeverProgress(float remaining01) => feverProgress = Mathf.Clamp01(remaining01);
+
+        /// <summary>Outside Fever: recharge (dim) or combo progress towards the trigger (warm), with a short label.</summary>
+        public void SetFeverMeter(float fill01, bool recharging, string label)
+        {
+            meterFill = Mathf.Clamp01(fill01);
+            meterRecharging = recharging;
+            feverMeterLabel.SetColor(recharging ? Pal.Lilac : Pal.OrangeLight);
+            feverMeterLabel.Set(label);
+        }
 
         public void Flash(Color color, float alpha = 0.85f)
         {
@@ -312,6 +322,14 @@ namespace TapOrDrag
                 var overlay = Color.HSVToRGB((time * 0.6f + 0.5f) % 1f, 0.8f, 1f);
                 overlay.a = 0.12f + 0.04f * Mathf.Sin(time * 8f);
                 feverOverlay.color = overlay;
+            }
+            else
+            {
+                // Charge meter: dim while recharging, orange -> gold as the combo approaches the trigger, pulsing near full.
+                Color c = meterRecharging ? new Color(0.62f, 0.55f, 0.8f, 0.7f) : Color.Lerp(Pal.Orange, Pal.Gold, meterFill);
+                if (!meterRecharging && meterFill >= 0.75f) c = Color.Lerp(c, Color.white, 0.35f * (0.5f + 0.5f * Mathf.Sin(time * 14f)));
+                feverBarFill.color = c;
+                feverBarFill.rectTransform.sizeDelta = new Vector2(180f * meterFill, 6f);
             }
 
             flashAlpha = Mathf.MoveTowards(flashAlpha, 0f, dt * 3f);

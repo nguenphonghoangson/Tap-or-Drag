@@ -121,7 +121,9 @@ namespace TapOrDrag
         [Header("Fever (reach the combo, smash everything for a few seconds)")]
         public int feverAtMultiplier = 5;
         [Tooltip("After a Fever ends, this many clears must pass before the next one (misses and shield hits do not shorten it).")]
-        public int feverRechargeClears = 10;
+        public int feverRechargeClears = 20;
+        [Tooltip("...and at least this many seconds must pass since the last Fever ended.")]
+        public float feverRechargeSeconds = 3f;
         public float feverDuration = 5f;
         public float feverSpeedScale = 1.3f;
         public int feverPointMultiplier = 2;

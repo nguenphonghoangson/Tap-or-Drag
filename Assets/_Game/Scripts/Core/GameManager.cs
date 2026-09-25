@@ -59,7 +59,8 @@ namespace TapOrDrag
         // Fever / perfect dash.
         bool fever;
         float feverTime, feverGhostTimer;
-        int feverReadyAt; // clears count from which the next Fever may start
+        int feverReadyAt;          // clears count from which the next Fever may start
+        float feverEndTime = -999f; // Time.time when the last Fever ended
         Obstacle perfectTarget;
 
         void Awake()
@@ -178,6 +179,7 @@ namespace TapOrDrag
             float baseSpeed = Mathf.Min(cfg.maxSpeed, cfg.startSpeed + clears * cfg.speedPerClear);
             worldSpeed = baseSpeed * (fever ? cfg.feverSpeedScale : 1f) + dashBoost;
             TickFever(dt);
+            UpdateFeverMeter();
             float dx = worldSpeed * dt;
 
             foreach (var o in obstacles) o.Tick(dt, worldSpeed);
@@ -439,6 +441,7 @@ namespace TapOrDrag
 
             EndFever(true);
             feverReadyAt = 0;
+            feverEndTime = -999f;
             perfectTarget = null;
             bird.ResetAt(ReadyBirdY);
             ApplySkin();
@@ -622,7 +625,7 @@ namespace TapOrDrag
             }
             hud.SetScore(score, multiplier, comboUp);
 
-            if (!fever && multiplier >= cfg.feverAtMultiplier && clears >= feverReadyAt) StartFever();
+            if (!fever && multiplier >= cfg.feverAtMultiplier && FeverRecharged) StartFever();
 
             if (score > best)
             {
@@ -674,6 +677,9 @@ namespace TapOrDrag
 
         void StartFever()
         {
+            if (dashing) EndDash(); // a dash that triggered the Fever must not carry its boost into it
+            dashBoost = 0f;
+            perfectTarget = null;
             fever = true;
             runFevers++;
             missions.Add(MissionType.Fevers);
@@ -697,9 +703,28 @@ namespace TapOrDrag
             hud.SetFever(false);
             sound.SetMusicPitch(1f);
             feverReadyAt = clears + cfg.feverRechargeClears; // misses and shield hits cannot shorten this
+            feverEndTime = Time.time;
             if (silent) return;
             bird.StartInvulnerable(cfg.feverGrace);
             sound.FeverEnd();
+        }
+
+        bool FeverRecharged => clears >= feverReadyAt && Time.time - feverEndTime >= cfg.feverRechargeSeconds;
+
+        /// <summary>Feeds the HUD Fever meter: recharge progress after a Fever, then combo progress towards the trigger.</summary>
+        void UpdateFeverMeter()
+        {
+            if (fever) return; // the HUD shows the remaining Fever time instead
+            if (!FeverRecharged)
+            {
+                int total = Mathf.Max(1, cfg.feverRechargeClears);
+                int done = Mathf.Clamp(total - (feverReadyAt - clears), 0, total);
+                float timeFrac = Mathf.Clamp01((Time.time - feverEndTime) / Mathf.Max(0.01f, cfg.feverRechargeSeconds));
+                hud.SetFeverMeter(Mathf.Min(done / (float)total, timeFrac), true, "RECHARGE " + done + "/" + total);
+                return;
+            }
+            float comboFrac = cfg.feverAtMultiplier <= 1 ? 1f : Mathf.Clamp01((multiplier - 1f) / (cfg.feverAtMultiplier - 1f));
+            hud.SetFeverMeter(comboFrac, false, "FEVER AT x" + cfg.feverAtMultiplier);
         }
 
         void TickFever(float dt)

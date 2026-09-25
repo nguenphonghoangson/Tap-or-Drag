@@ -226,7 +226,7 @@ namespace TapOrDrag
 
         void UpdateHint(Vector2 bp)
         {
-            if (dashing)
+            if (dashing || fever)
             {
                 hud.SetHint(false, "", Pal.White);
                 return;
