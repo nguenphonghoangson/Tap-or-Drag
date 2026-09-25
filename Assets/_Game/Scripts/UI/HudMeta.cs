@@ -6,7 +6,9 @@ namespace TapOrDrag
     /// <summary>Meta UI: coin counter, skin shop button, daily missions and the coins earned on the game-over screen.</summary>
     public partial class Hud
     {
-        PixelText coinText, buyText, goCoinsText, switchText;
+        PixelText coinText, buyText, goCoinsText, switchText, meteorMarker;
+        bool meteorOn, meteorLocked;
+        Vector3 meteorWorld;
         Image coinIcon, buyIcon, goCoinsIcon, gravityOverlay, switchIcon;
         RectTransform switchBadge;
         float switchPulse;
@@ -55,6 +57,10 @@ namespace TapOrDrag
             switchIcon = NewImage(switchBadge, "Icon", art.SwitchIcon[0], 3f, TopLeft, TopLeft, Vector2.zero);
             switchText = PixelText.Create(switchBadge, "State", "GOLD", Art.SwitchMain[0], 2, TopLeft, TopLeft, new Vector2(30f, -2f));
             switchBadge.gameObject.SetActive(false);
+
+            // Meteor warning at the right edge of the play field (positioned in TickMeta from a world height).
+            meteorMarker = PixelText.Create(playGroup, "MeteorWarning", "!", Pal.Gold, 6, Mid, new Vector2(1f, 0.5f), Vector2.zero);
+            meteorMarker.Visible = false;
 
             // Flipped-gravity tint (under the HUD, over the world).
             gravityOverlay = NewImage(transform, "GravityOverlay", null, 1f, Mid, Mid, Vector2.zero);
@@ -124,6 +130,16 @@ namespace TapOrDrag
             switchPulse = 1f;
         }
 
+        /// <summary>Warning marker at the right edge. Tracking: yellow, slow blink. Locked: red, fast blink.</summary>
+        public void SetMeteorWarning(bool on, float worldY, bool locked)
+        {
+            meteorOn = on;
+            meteorLocked = locked;
+            meteorWorld = new Vector3(World.ViewWidth * 0.5f - 0.3f, worldY, 0f);
+            meteorMarker.SetColor(locked ? Pal.Red : Pal.Gold);
+            if (!on) meteorMarker.Visible = false;
+        }
+
         public void SetGravityInverted(bool inverted)
         {
             gravityInverted = inverted;
@@ -141,6 +157,13 @@ namespace TapOrDrag
         void TickMeta(float dt)
         {
             metaTime += dt;
+            if (meteorOn && cam != null)
+            {
+                Vector2 screen = cam.WorldToScreenPoint(meteorWorld);
+                if (RectTransformUtility.ScreenPointToLocalPointInRectangle(playGroup, screen, null, out var local))
+                    meteorMarker.Rect.anchoredPosition = local;
+                meteorMarker.Visible = ((int)(metaTime * (meteorLocked ? 14f : 6f)) & 1) == 0;
+            }
             switchPulse = Mathf.MoveTowards(switchPulse, 0f, dt * 4f);
             switchBadge.localScale = Vector3.one * (1f + 0.35f * switchPulse);
             if (gravityInverted)

@@ -2,6 +2,12 @@ using UnityEngine;
 
 namespace TapOrDrag
 {
+    /// <summary>Obstacles that Fever can smash and the BLUEJAY shield can neutralise.</summary>
+    public interface IBreakable
+    {
+        void Break();
+    }
+
     public abstract class Obstacle : MonoBehaviour
     {
         public float X { get; protected set; }

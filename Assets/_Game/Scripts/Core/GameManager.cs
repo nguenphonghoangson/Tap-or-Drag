@@ -6,7 +6,7 @@ namespace TapOrDrag
 {
     public enum GameState { Ready, Playing, Dead }
 
-    enum ObstacleKind { Pipe, Gate, Enemy, RedGate, SwitchGate, Portal, SwitchWall }
+    enum ObstacleKind { Pipe, Gate, Enemy, RedGate, SwitchGate, Portal, SwitchWall, Icicle, Bats, Laser }
 
     /// <summary>
     /// Owns the run: state machine, obstacle spawning, collisions, dash, score/combo and best score.
@@ -226,7 +226,7 @@ namespace TapOrDrag
                     }
                     else if (obstacles[i] is SpikyEnemy e && !e.Defeated)
                     {
-                        float reach = r + SpikyEnemy.Radius + 0.15f;
+                        float reach = r + e.CollisionRadius + 0.15f;
                         if ((e.Position - bp).sqrMagnitude < reach * reach)
                         {
                             e.Defeat();
@@ -277,6 +277,7 @@ namespace TapOrDrag
                 }
 
             TickCoins(dt, bp);
+            TickMeteors(dt, bp);
 
             while (nextSpawnX < World.SpawnX) SpawnNext();
             for (int i = obstacles.Count - 1; i >= 0; i--)
@@ -335,7 +336,6 @@ namespace TapOrDrag
         void OnSwipe()
         {
             if (state != GameState.Playing || stateTime < 0.25f) return;
-            if (fever) return; // Fever already smashes everything; dashing would only turn it into a speed exploit
             if (dashing || dashCooldown > 0f) return;
 
             Vector2 bp = bird.Position;
@@ -374,10 +374,17 @@ namespace TapOrDrag
             float bestDistance = float.MaxValue, r = cfg.hitRadius;
             foreach (var o in obstacles)
             {
-                if (o is DashGate g && g.Broken) continue;
-                if (o is TrapGate tg && (tg.Broken || tg.Mode == TrapGate.GateMode.Trap)) continue;
-                if (o is SpikyEnemy e && (e.Defeated || Mathf.Abs(e.Position.y - bp.y) > cfg.enemyLockRange)) continue;
-                if (o is PipePair && (!includePipes || o.Cleared)) continue;
+                // Whitelist: only things a dash actually interacts with.
+                bool valid;
+                switch (o)
+                {
+                    case DashGate g: valid = !g.Broken; break;
+                    case TrapGate t: valid = !t.Broken && t.Mode == TrapGate.GateMode.Dash; break;
+                    case SpikyEnemy e: valid = !e.Defeated && Mathf.Abs(e.Position.y - bp.y) <= cfg.enemyLockRange; break;
+                    case PipePair p: valid = includePipes && !p.Cleared; break;
+                    default: valid = false; break;
+                }
+                if (!valid) continue;
                 float d = (o.X - o.HalfWidth) - (bp.x + r);
                 if (d >= -r && d <= cfg.dashWindow && d < bestDistance)
                 {
@@ -496,6 +503,7 @@ namespace TapOrDrag
             fx.Shake(0.5f, 0.45f);
             hud.Flash(gateVariant >= 0 ? (Color)Art.GateMain[gateVariant] : Color.white);
             hud.SetGravityInverted(false);
+            hud.SetMeteorWarning(false, 0f, false);
             hud.SetHint(false, "", Pal.White);
             sound.Hit();
             if (gateVariant >= 0) sound.Zap();
@@ -533,6 +541,7 @@ namespace TapOrDrag
             multiplier = newMultiplier;
             int basePoints = o is DashGate ? cfg.gatePoints
                 : o is SwitchWall ? cfg.switchWallPoints
+                : o is Icicle || o is LaserSweeper || o is Meteor ? cfg.hazardPoints
                 : o is TrapGate scoredTrap ? (scoredTrap.Broken ? cfg.gatePoints : cfg.redGatePoints) + (scoredTrap.IsSwitch ? cfg.switchGateBonus : 0)
                 : o is SpikyEnemy enemy ? (enemy.Defeated ? cfg.enemyStompPoints : cfg.enemyDodgePoints)
                 : cfg.pipePoints;
@@ -599,9 +608,14 @@ namespace TapOrDrag
                     sound.Pass(multiplier);
                 }
             }
-            else
+            else if (o is Icicle || o is LaserSweeper || o is Meteor)
             {
-                var pipe = (PipePair)o;
+                Vector2 at = new Vector2(o.X, bird.Position.y + 0.6f);
+                fx.Float("+" + points, Pal.White, at + new Vector2(0f, 0.4f), 1.1f, worldSpeed * 0.5f);
+                sound.Pass(multiplier);
+            }
+            else if (o is PipePair pipe)
+            {
                 missions.Add(MissionType.PassPipes);
                 var at = new Vector2(pipe.X, pipe.GapCenter);
                 fx.PipePass(at, worldSpeed);
@@ -677,9 +691,6 @@ namespace TapOrDrag
 
         void StartFever()
         {
-            if (dashing) EndDash(); // a dash that triggered the Fever must not carry its boost into it
-            dashBoost = 0f;
-            perfectTarget = null;
             fever = true;
             runFevers++;
             missions.Add(MissionType.Fevers);
@@ -758,6 +769,7 @@ namespace TapOrDrag
                 else if (o is DashGate gate) gate.Break();
                 else if (o is TrapGate trap) trap.Break();
                 else if (o is SwitchWall wall) wall.Break();
+                else if (o is IBreakable breakable) breakable.Break();
                 else if (o is SpikyEnemy enemy) enemy.Defeat();
                 OnCleared(o);
                 sound.Smash();
@@ -858,6 +870,7 @@ namespace TapOrDrag
             if (hit is DashGate gate) gate.Break();
             else if (hit is TrapGate trap) trap.Break();
             else if (hit is SwitchWall wall) wall.Break();
+            else if (hit is IBreakable breakable) breakable.Break();
             else if (hit is SpikyEnemy enemy) enemy.Defeat();
             else if (hit != null) hit.Cleared = true;
 
@@ -939,6 +952,18 @@ namespace TapOrDrag
                     break;
                 case ObstacleKind.SwitchWall:
                     SpawnSwitchWall(x, spawned == cfg.firstSwitchWallAt);
+                    specialsInRow++;
+                    break;
+                case ObstacleKind.Icicle:
+                    SpawnIcicle(x);
+                    specialsInRow++;
+                    break;
+                case ObstacleKind.Bats:
+                    SpawnBats(x);
+                    specialsInRow++;
+                    break;
+                case ObstacleKind.Laser:
+                    SpawnLaser(x);
                     specialsInRow++;
                     break;
                 case ObstacleKind.Gate:
@@ -1050,6 +1075,8 @@ namespace TapOrDrag
             if (spawned == cfg.firstSwitchWallAt) return ObstacleKind.SwitchWall;
             if (specialsInRow >= cfg.maxGatesInRow) return ObstacleKind.Pipe;
             if (!spawnInverted && KindAvailable(ObstacleKind.Portal) && Random.value < cfg.portalChance) return ObstacleKind.Portal;
+            var hazard = HazardKind(SpawnHazard);
+            if (hazard.HasValue && Random.value < cfg.biomeHazardChance) return hazard.Value;
 
             if (spawned >= cfg.firstPatternAt && Random.value < cfg.patternChance)
             {
@@ -1087,6 +1114,10 @@ namespace TapOrDrag
             if (current == ObstacleKind.Enemy) return cfg.enemySpacingAfter;
             if (next == ObstacleKind.Portal) return cfg.portalSpacingBefore;
             if (current == ObstacleKind.SwitchWall) return cfg.switchWallSpacingAfter;
+            if (current == ObstacleKind.Bats) return cfg.enemySpacingAfter + 1.6f; // the flock is ~1.6 units long
+            if (next == ObstacleKind.Bats) return cfg.enemySpacingBefore;
+            if (current == ObstacleKind.Laser) return cfg.laserSpacingAfter;
+            if (next == ObstacleKind.Laser) return cfg.laserSpacingBefore;
             if (next == ObstacleKind.SwitchWall) return cfg.switchWallSpacingBefore;
             if (next == ObstacleKind.Enemy) return cfg.enemySpacingBefore;
             if (current == ObstacleKind.RedGate) return cfg.pipeSpacing;
@@ -1139,6 +1170,9 @@ namespace TapOrDrag
             else if (o is SpikyEnemy e) enemyPool.Push(e);
             else if (o is TrapGate t) trapPool.Push(t);
             else if (o is SwitchWall w) switchPool.Push(w);
+            else if (o is Icicle ic) iciclePool.Push(ic);
+            else if (o is LaserSweeper ls) laserPool.Push(ls);
+            else if (o is Meteor me) meteorPool.Push(me);
         }
     }
 }

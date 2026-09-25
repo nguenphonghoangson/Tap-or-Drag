@@ -2,6 +2,8 @@ using UnityEngine;
 
 namespace TapOrDrag
 {
+    public enum EnemyStyle { Spiky, Bat } // Bat: smaller, faster wave, NIGHT biome flocks
+
     /// <summary>
     /// Flying spiky ball that moves towards the bird. The player chooses: dodge it with taps (small reward)
     /// or dash through it to stomp it (bigger reward). Touching it without dashing is fatal.
@@ -9,16 +11,20 @@ namespace TapOrDrag
     public class SpikyEnemy : Obstacle
     {
         public const float Radius = 0.42f;
+        const float BatRadius = 0.3f;
 
         Art art;
         SpriteRenderer body;
-        float baseY, bob, extraSpeed, phase, anim, spin;
+        float baseY, bob, extraSpeed, phase, anim, spin, bobRate = 3f;
+        Sprite[] frames;
         Vector2 knockVelocity, knockOffset;
 
         public float Y { get; private set; }
+        public EnemyStyle Style { get; private set; }
+        public float CollisionRadius => Style == EnemyStyle.Bat ? BatRadius : Radius;
         public bool Defeated { get; private set; }
         public Vector2 Position => new Vector2(X, Y) + knockOffset;
-        public override float HalfWidth => Radius;
+        public override float HalfWidth => CollisionRadius;
 
         public void Build(Art sourceArt)
         {
@@ -26,8 +32,11 @@ namespace TapOrDrag
             body = Part("Body", art.Spiky[0], 7);
         }
 
-        public void Setup(float x, float y, float towardsBirdSpeed, float bobAmplitude)
+        public void Setup(float x, float y, float towardsBirdSpeed, float bobAmplitude, EnemyStyle style = EnemyStyle.Spiky)
         {
+            Style = style;
+            frames = style == EnemyStyle.Bat ? art.BatFrames : art.Spiky;
+            bobRate = style == EnemyStyle.Bat ? 6f : 3f;
             X = x;
             Cleared = false;
             Defeated = false;
@@ -52,10 +61,10 @@ namespace TapOrDrag
             if (!Defeated)
             {
                 X -= (speed + extraSpeed) * dt;
-                phase += dt * 3f;
+                phase += dt * bobRate;
                 Y = baseY + bob * Mathf.Sin(phase);
-                body.sprite = art.Spiky[(int)(anim * 10f) & 1];
-                float pulse = 1f + 0.06f * Mathf.Sin(anim * 14f);
+                body.sprite = frames[(int)(anim * (Style == EnemyStyle.Bat ? 14f : 10f)) & 1];
+                float pulse = Style == EnemyStyle.Bat ? 1f : 1f + 0.06f * Mathf.Sin(anim * 14f);
                 body.transform.localScale = new Vector3(pulse, 2f - pulse, 1f);
             }
             else
@@ -86,7 +95,7 @@ namespace TapOrDrag
         public override bool Hits(Vector2 c, float r)
         {
             if (Defeated) return false;
-            float rr = r + Radius;
+            float rr = r + CollisionRadius;
             return (c - Position).sqrMagnitude < rr * rr;
         }
     }

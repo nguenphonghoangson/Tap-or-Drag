@@ -53,6 +53,7 @@ namespace TapOrDrag
 
             ResetGravity();
             ResetSwitch();
+            ResetHazards();
             biomeIndex = 0;
             background.SetBiome(art.Biomes[0], 0.8f);
         }
@@ -265,7 +266,11 @@ namespace TapOrDrag
             {
                 case PipePair _: return "PIPE";
                 case DashGate _: return "GATE";
+                case SpikyEnemy bat when bat.Style == EnemyStyle.Bat: return "BAT";
                 case SpikyEnemy _: return "ENEMY";
+                case Icicle _: return "ICICLE";
+                case LaserSweeper _: return "LASER";
+                case Meteor _: return "METEOR";
                 case SwitchWall _: return "SWITCH WALL";
                 case TrapGate t when t.IsSwitch: return "SWITCH GATE";
                 case TrapGate t when dashing && t.Mode == TrapGate.GateMode.Trap: return "RED GATE DASHED";

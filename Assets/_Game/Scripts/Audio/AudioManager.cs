@@ -13,7 +13,7 @@ namespace TapOrDrag
         int nextVoice;
         float musicTarget = MusicVolume;
         AudioClip flap, pass, combo, dash, gateBreak, stomp, shieldPop, skillReady, feverStart, feverEnd, perfect, closeCall, smash,
-            coin, switchFlip, biome, mission, purchase, portalUp, portalDown, switchToggle, miss, hit, zap, fall, thud, gameOver, newBest, click, start;
+            coin, switchFlip, biome, mission, purchase, portalUp, portalDown, switchToggle, iceCrack, iceShatter, meteorWarn, meteorLaunch, miss, hit, zap, fall, thud, gameOver, newBest, click, start;
 
         public bool Muted { get; private set; }
 
@@ -59,6 +59,16 @@ namespace TapOrDrag
             biome = Synth.Clip("Biome", Synth.Seq(
                 (0f, Synth.Tone(0.7f, 300f, 4000f, W.Noise, 0.1f, decay: 0.6f, curve: 0.6f)),
                 (0.1f, Synth.Arp(0.09f, new[] { 392f, 523f, 659f, 784f }, W.Triangle, 0.2f, decay: 0.8f))));
+            iceCrack = Synth.Clip("IceCrack", Synth.Tone(0.25f, 5000f, 2500f, W.Noise, 0.12f, decay: 0.4f, vibratoHz: 40f, vibratoDepth: 0.3f));
+            iceShatter = Synth.Clip("IceShatter", Synth.Seq(
+                (0f, Synth.Tone(0.22f, 7000f, 2000f, W.Noise, 0.3f, decay: 1.3f)),
+                (0f, Synth.Arp(0.035f, new[] { 3136f, 2637f, 3520f, 2349f }, W.Sine, 0.12f))));
+            meteorWarn = Synth.Clip("MeteorWarn", Synth.Seq(
+                (0f, Synth.Tone(0.08f, 1760f, 1760f, W.Square, 0.12f)),
+                (0.16f, Synth.Tone(0.08f, 1760f, 1760f, W.Square, 0.12f))));
+            meteorLaunch = Synth.Clip("MeteorLaunch", Synth.Seq(
+                (0f, Synth.Tone(0.5f, 1500f, 200f, W.Noise, 0.25f, decay: 0.8f)),
+                (0f, Synth.Tone(0.4f, 300f, 60f, W.Sine, 0.3f))));
             switchToggle = Synth.Clip("SwitchToggle", Synth.Seq(
                 (0f, Synth.Tone(0.05f, 660f, 660f, W.Square, 0.14f, 0.5f)),
                 (0.05f, Synth.Tone(0.09f, 990f, 990f, W.Square, 0.14f, 0.5f, 1.4f)),
@@ -160,6 +170,10 @@ namespace TapOrDrag
         public void SwitchFlip() => Play(switchFlip);
         public void Biome() => Play(biome, 0.8f);
         public void Mission() => Play(mission);
+        public void IceCrack() => Play(iceCrack, 0.7f);
+        public void IceShatter() => Play(iceShatter, 0.8f, Random.Range(0.9f, 1.1f));
+        public void MeteorWarn() => Play(meteorWarn, 0.8f);
+        public void MeteorLaunch() => Play(meteorLaunch, 0.9f);
         public void SwitchToggle(int state) => Play(switchToggle, 0.9f, state == 0 ? 1f : 0.8f);
         public void Portal(bool inverted) => Play(inverted ? portalUp : portalDown);
         public void Purchase() => Play(purchase);

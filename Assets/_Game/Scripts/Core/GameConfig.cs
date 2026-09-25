@@ -91,6 +91,26 @@ namespace TapOrDrag
         [Tooltip("Show the SWIPE TO SWITCH hint until the player has passed this many switch walls in total.")]
         public int switchHintUntil = 3;
 
+        [Header("Biome hazards (snow: icicles, night: bats, neon: lasers, space: meteors)")]
+        [Range(0f, 1f)] public float biomeHazardChance = 0.3f;
+        public int hazardPoints = 1;
+        [Tooltip("An icicle drops when it is this far ahead of the bird (it lands before the bird arrives).")]
+        public float icicleDropDistance = 5.5f;
+        public int batFlockSize = 3;
+        public float batExtraSpeed = 1.4f;
+        public float laserSweepPeriod = 3.6f;
+        [Tooltip("Half the height the laser sweeps; the rest of the play area above/below stays safe.")]
+        public float laserSweepAmplitude = 2.8f;
+        public float laserSpacingBefore = 4.5f;
+        public float laserSpacingAfter = 5f;
+        public float meteorIntervalMin = 4f;
+        public float meteorIntervalMax = 7f;
+        [Tooltip("The warning follows the bird for this long, then locks its height.")]
+        public float meteorTrackTime = 0.6f;
+        [Tooltip("Total warning time before the meteor launches.")]
+        public float meteorWarnTime = 1.1f;
+        public float meteorSpeed = 11f;
+
         [Header("Patterns (short tight sequences that force quick input changes)")]
         public int firstPatternAt = 10;
         [Range(0f, 1f)] public float patternChance = 0.2f;

@@ -14,6 +14,7 @@ namespace TapOrDrag
             public Color SunGlow, CloudTint, GroundTint;
             public float StarAlpha;
             public bool Snow; // snowfall layers in the background
+            public BiomeHazard Hazard; // obstacle that only appears in this biome
         }
 
         public Sprite[] Coin;          // pickup frames (a bone in the dog version)
@@ -35,6 +36,7 @@ namespace TapOrDrag
             BuildCoins();
             BuildPortal();
             BuildSwitchBlocks();
+            BuildHazards();
             BuildMetaIcons();
             BuildBiomes();
         }
@@ -179,7 +181,7 @@ namespace TapOrDrag
                         Pal.Hex("2d4668"), Pal.Hex("e8f2ff"), 13),
                     Sun = MakeWinterSun(),
                     SunGlow = new Color(1f, 0.95f, 0.8f, 0.3f), CloudTint = new Color(1f, 1f, 1f, 0.9f),
-                    GroundTint = new Color(0.8f, 0.9f, 1f), StarAlpha = 0.2f, Snow = true,
+                    GroundTint = new Color(0.8f, 0.9f, 1f), StarAlpha = 0.2f, Snow = true, Hazard = BiomeHazard.Icicles,
                 },
                 new BiomeArt
                 {
@@ -191,7 +193,7 @@ namespace TapOrDrag
                         Pal.Hex("111838"), Pal.Hex("243060"), 7),
                     Sun = moon,
                     SunGlow = new Color(0.7f, 0.8f, 1f, 0.25f), CloudTint = new Color(0.45f, 0.5f, 0.8f, 0.8f),
-                    GroundTint = new Color(0.6f, 0.65f, 0.9f), StarAlpha = 1f,
+                    GroundTint = new Color(0.6f, 0.65f, 0.9f), StarAlpha = 1f, Hazard = BiomeHazard.Bats,
                 },
                 new BiomeArt
                 {
@@ -203,7 +205,7 @@ namespace TapOrDrag
                         new[] { Pal.Hex("ff5fd8"), Pal.Hex("3ff0ff") }, 14, 40, 0.25f),
                     Sun = Sun,
                     SunGlow = new Color(1f, 0.3f, 0.9f, 0.4f), CloudTint = new Color(1f, 0.6f, 1f, 0.5f),
-                    GroundTint = new Color(0.85f, 0.6f, 1f), StarAlpha = 0.4f,
+                    GroundTint = new Color(0.85f, 0.6f, 1f), StarAlpha = 0.4f, Hazard = BiomeHazard.Lasers,
                 },
                 new BiomeArt
                 {
@@ -216,7 +218,7 @@ namespace TapOrDrag
                         Pal.Hex("231d35"), Pal.Hex("3e3656"), 0),
                     Sun = planet,
                     SunGlow = new Color(1f, 0.7f, 0.4f, 0.2f), CloudTint = new Color(1f, 1f, 1f, 0f),
-                    GroundTint = new Color(0.55f, 0.5f, 0.75f), StarAlpha = 1f,
+                    GroundTint = new Color(0.55f, 0.5f, 0.75f), StarAlpha = 1f, Hazard = BiomeHazard.Meteors,
                 },
             };
         }
