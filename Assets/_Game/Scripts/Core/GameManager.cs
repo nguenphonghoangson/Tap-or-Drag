@@ -154,6 +154,7 @@ namespace TapOrDrag
                 if (Input.GetKeyDown(KeyCode.RightArrow)) StepSkin(1);
             }
             input.Tick();
+            TickJetPreview(); // every state, so it hides as soon as a run starts
             stateTime += dt;
             switch (state)
             {
@@ -175,7 +176,6 @@ namespace TapOrDrag
             worldSpeed = cfg.startSpeed * 0.5f;
             background.Tick(dt, worldSpeed * dt);
             bird.TickIdle(dt);
-            TickJetPreview();
         }
 
         void TickPlaying(float dt)

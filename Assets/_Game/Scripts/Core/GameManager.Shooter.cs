@@ -142,6 +142,7 @@ namespace TapOrDrag
             stateTime = 0f;
             runCoins = 0;
             BeginRunMeta();
+            jetPreview.enabled = false;
             background.gameObject.SetActive(false);
             hud.ShowPlaying();
             if (hud.HangarOpen) hud.ShowHangar(false, Economy.Coins);
