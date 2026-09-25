@@ -175,6 +175,7 @@ namespace TapOrDrag
             worldSpeed = cfg.startSpeed * 0.5f;
             background.Tick(dt, worldSpeed * dt);
             bird.TickIdle(dt);
+            TickJetPreview();
         }
 
         void TickPlaying(float dt)

@@ -88,6 +88,9 @@ namespace TapOrDrag
         readonly List<(SpriteRenderer r, float speed)> stars = new List<(SpriteRenderer, float)>();
         readonly List<(SpriteRenderer r, float speed)> nebulas = new List<(SpriteRenderer, float)>();
         SpriteRenderer planet, shockwave, megaLaser, wingmanLeft, wingmanRight;
+        SpriteRenderer shipR, flameR, bubbleR;
+        Sprite[] jetFrames;
+        float roll;
 
         // Run state
         Vector2 shipPos, lastPointer;
@@ -134,6 +137,12 @@ namespace TapOrDrag
             wingmanLeft.transform.localScale = wingmanRight.transform.localScale = Vector3.one * 1.6f;
             wingmanLeft.enabled = wingmanRight.enabled = false;
 
+            shipR = NewRenderer("Jet", 10);
+            flameR = NewRenderer("JetFlame", 9);
+            bubbleR = NewRenderer("JetShield", 12);
+            bubbleR.sprite = art.ShieldBubble;
+            bubbleR.enabled = false;
+
             root.gameObject.SetActive(false);
         }
 
@@ -147,9 +156,12 @@ namespace TapOrDrag
             ClearEntities();
 
             shipPos = new Vector2(0f, World.Bottom + 3f);
-            bird.gameObject.SetActive(true);
-            bird.ResetAt(shipPos.y);
-            bird.TickShooter(0f, shipPos, 0f);
+            bird.gameObject.SetActive(false); // the shooter draws its own top-down jet
+            int skinIndex = Mathf.Max(0, Array.IndexOf(SkinDef.All, ship));
+            jetFrames = art.Jets[skinIndex];
+            roll = 0f;
+            shipR.enabled = flameR.enabled = true;
+            TickShip(0f);
 
             // Hangar upgrades.
             damageMultiplier = ShipUpgrades.DamageMultiplier;
@@ -188,7 +200,6 @@ namespace TapOrDrag
             hud.SetSkillCharge(0f, false, skillShort);
             hud.ShowBossBar(false, 0f);
             hud.SetScore(0, 1, false);
-            if (shieldHits > 0) bird.SetShield(true);
             if (luckyBone) hud.Toast("LUCKY BONE X2", Pal.Gold);
             UpdateBuffIcons();
         }
@@ -198,7 +209,6 @@ namespace TapOrDrag
             Running = false;
             ClearEntities();
             root.gameObject.SetActive(false);
-            bird.SetShield(false);
             hud.SetShooterHud(false);
             hud.ShowBossBar(false, 0f);
         }
@@ -238,7 +248,7 @@ namespace TapOrDrag
             if (Input.GetKeyDown(KeyCode.Q)) UseBomb();
 
             TickInput(dt);
-            bird.TickShooter(dt, shipPos, velocityX);
+            TickShip(dt);
             TickFire(dt);
             TickSkillEffects(dt);
             TickSpawning(dt);
@@ -259,7 +269,7 @@ namespace TapOrDrag
             wingmanTimer -= dt;
             goldTimer -= dt;
             warpTimer -= dt;
-            if (iceTimer > 0f && (iceTimer -= dt) <= 0f) bird.SetShield(shieldHits > 0);
+            if (iceTimer > 0f) iceTimer -= dt;
             boneChainTimer -= dt;
             if (boneChainTimer <= 0f) boneChain = 0;
             comboTimer -= dt;
@@ -337,6 +347,31 @@ namespace TapOrDrag
             velocityX = dt > 0f ? (shipPos.x - before.x) / dt : 0f;
         }
 
+        /// <summary>Top-down jet: rolls into horizontal movement, engine flicker, blink while invulnerable, shield bubble.</summary>
+        void TickShip(float dt)
+        {
+            roll = Mathf.MoveTowards(roll, Mathf.Clamp(velocityX / 6f, -1f, 1f), dt * 6f);
+            shipR.sprite = jetFrames[roll < -0.35f ? 1 : roll > 0.35f ? 2 : 0];
+            shipR.transform.localPosition = new Vector3(shipPos.x, shipPos.y, 0f);
+            shipR.transform.localScale = new Vector3(1f - 0.08f * Mathf.Abs(roll), 1f, 1f); // slight foreshortening in a roll
+            bool blink = invulnerable > 0f && iceTimer <= 0f && ((int)(time * 16f) & 1) == 0;
+            shipR.color = blink ? new Color(1f, 1f, 1f, 0.3f) : Color.white;
+
+            flameR.sprite = art.JetFlame[(int)(time * 18f) & 1];
+            flameR.transform.localPosition = new Vector3(shipPos.x, shipPos.y - 0.8f, 0f);
+            flameR.transform.localScale = new Vector3(1f, (rapidTimer > 0f ? 1.5f : 1f) + 0.15f * Mathf.Sin(time * 30f), 1f);
+            flameR.color = shipR.color;
+
+            bubbleR.enabled = shieldHits > 0 || iceTimer > 0f;
+            if (bubbleR.enabled)
+            {
+                float wobble = 1.05f + 0.05f * Mathf.Sin(time * 7f);
+                bubbleR.transform.localPosition = shipR.transform.localPosition;
+                bubbleR.transform.localScale = new Vector3(wobble, 2.1f - wobble, 1f);
+                bubbleR.color = iceTimer > 0f ? new Color(0.7f, 0.95f, 1f, iceTimer < 1.5f && ((int)(time * 10f) & 1) == 0 ? 0.4f : 1f) : Color.white;
+            }
+        }
+
         void Drag(Vector2 screen)
         {
             var world = ScreenToWorld(screen);
@@ -352,7 +387,7 @@ namespace TapOrDrag
             if (fireTimer > 0f) return;
             float weaponRate = weapon == Weapon.Homing ? 1.6f : weapon == Weapon.Plasma ? 1.8f : weapon == Weapon.Wave ? 1.2f : 1f;
             fireTimer = cfg.shooterFireInterval * fireIntervalMultiplier * weaponRate * (rapidTimer > 0f ? 0.5f : 1f);
-            var muzzle = shipPos + new Vector2(0.05f, 0.7f);
+            var muzzle = shipPos + new Vector2(0f, 0.85f);
             float dmg = damageMultiplier;
             switch (weapon)
             {
@@ -459,7 +494,6 @@ namespace TapOrDrag
                     break;
                 case ShipSkill.IceShield:
                     iceTimer = 6f;
-                    bird.SetShield(true);
                     sound.ShieldPop();
                     break;
                 case ShipSkill.Wingmen:
@@ -529,8 +563,8 @@ namespace TapOrDrag
             wingmanLeft.enabled = wingmanRight.enabled = wings;
             if (wings)
             {
-                var l = shipPos + new Vector2(-0.95f, -0.25f + Mathf.Sin(time * 6f) * 0.08f);
-                var r = shipPos + new Vector2(0.95f, -0.25f - Mathf.Sin(time * 6f) * 0.08f);
+                var l = shipPos + new Vector2(-1.3f, -0.2f + Mathf.Sin(time * 6f) * 0.08f);
+                var r = shipPos + new Vector2(1.3f, -0.2f - Mathf.Sin(time * 6f) * 0.08f);
                 Place(wingmanLeft, l);
                 Place(wingmanRight, r);
                 if ((wingmanFire -= dt) <= 0f)
@@ -645,7 +679,7 @@ namespace TapOrDrag
             {
                 case EnemyKind.Drone: e.R.sprite = art.CatDrone; e.Radius = 0.38f; e.Score = 10; break;
                 case EnemyKind.Saucer: e.R.sprite = art.CatSaucer; e.Radius = 0.55f; e.Score = 40; e.TargetY = World.Top - Random.Range(3.2f, 5.5f); break;
-                case EnemyKind.Diver: e.R.sprite = art.Spiky[0]; e.Radius = 0.45f; e.Score = 25; e.TargetY = World.Top - Random.Range(2.2f, 3.5f); break;
+                case EnemyKind.Diver: e.R.sprite = art.CatDiver; e.Radius = 0.42f; e.Score = 25; e.TargetY = World.Top - Random.Range(2.2f, 3.5f); break;
                 case EnemyKind.Rock: e.R.sprite = art.Meteor; e.Radius = 0.5f; e.Score = 30; break;
             }
             Place(e.R, e.P);
@@ -767,7 +801,6 @@ namespace TapOrDrag
                                 e.Diving = true;
                                 e.DiveVelocity = (shipPos - e.P).normalized * 9f;
                             }
-                            e.R.sprite = art.Spiky[(int)(e.T * 10f) & 1];
                         }
                         else
                         {
@@ -1182,7 +1215,6 @@ namespace TapOrDrag
                     break;
                 case PickupKind.Shield:
                     shieldHits = 1;
-                    bird.SetShield(true);
                     Announce("SHIELD!", Pal.Hex("3ff0ff"), at);
                     break;
                 case PickupKind.Wingman:
@@ -1224,9 +1256,7 @@ namespace TapOrDrag
             if (shieldHits > 0)
             {
                 shieldHits = 0;
-                bird.SetShield(false);
                 invulnerable = 1f;
-                bird.StartInvulnerable(1f);
                 fx.ShieldPop(shipPos);
                 sound.ShieldPop();
                 UpdateBuffIcons();
@@ -1248,7 +1278,6 @@ namespace TapOrDrag
             if (hearts > 0)
             {
                 invulnerable = cfg.shooterInvulnerable;
-                bird.StartInvulnerable(invulnerable);
                 power = Mathf.Max(1, power - 1);
                 if (weapon != Weapon.Blaster)
                 {
@@ -1265,7 +1294,7 @@ namespace TapOrDrag
             fx.Shake(0.6f, 0.5f);
             sound.BigExplode();
             megaLaser.enabled = wingmanLeft.enabled = wingmanRight.enabled = false;
-            bird.gameObject.SetActive(false);
+            shipR.enabled = flameR.enabled = bubbleR.enabled = false;
         }
 
         // ---------------------------------------------------------------- background (vertical space scroll)

@@ -17,6 +17,7 @@ namespace TapOrDrag
         GameMode mode;
         int bestShooter;
         bool shooterGameOver; // Dead state reached from the shooter: skip the flappy death animation
+        SpriteRenderer jetPreview; // title screen stand-in for the dog while DOG BLAST is selected
 
         void InitShooter()
         {
@@ -33,6 +34,10 @@ namespace TapOrDrag
             shooter.EnemyKilled += () => missions.Add(MissionType.StompEnemies);
             mode = (GameMode)Mathf.Clamp(PlayerPrefs.GetInt(ModeKey, 0), 0, 1);
             bestShooter = PlayerPrefs.GetInt(BestShooterKey, 0);
+            jetPreview = new GameObject("JetPreview").AddComponent<SpriteRenderer>();
+            jetPreview.transform.SetParent(transform, false);
+            jetPreview.sortingOrder = 10;
+            jetPreview.enabled = false;
             hud.ModeStepRequested += StepMode;
             hud.SkillPressed += () => shooter.ActivateSkill();
             hud.BombPressed += () => shooter.UseBomb();
@@ -100,7 +105,19 @@ namespace TapOrDrag
             hud.SetMode(shooterMode);
             hud.SetBest(shooterMode ? bestShooter : best, false);
             hud.SetReadyPanel(runsPlayed >= cfg.missionsAfterRuns, shooterMode);
+            bird.gameObject.SetActive(!shooterMode);
             ApplySkin(); // skill line switches between flappy and ship skills
+        }
+
+        /// <summary>Title screen: the idle dog is shown in its fighter jet when DOG BLAST is selected.</summary>
+        void TickJetPreview()
+        {
+            bool show = state == GameState.Ready && mode == GameMode.Shooter;
+            jetPreview.enabled = show;
+            if (!show) return;
+            jetPreview.sprite = art.Jets[skinIndex][0];
+            jetPreview.color = IsSkinUnlocked(skinIndex) ? Color.white : new Color(0.12f, 0.07f, 0.2f);
+            jetPreview.transform.position = bird.transform.position;
         }
 
         /// <summary>Called from EnterReady: leave the shooter world and bring the flappy scenery back.</summary>

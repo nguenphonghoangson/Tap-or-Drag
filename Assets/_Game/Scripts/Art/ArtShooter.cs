@@ -6,7 +6,7 @@ namespace TapOrDrag
     /// <summary>Sprites for the DOG BLAST shooter mode: cat enemies (dogs vs cats), bullets, pickups and hearts.</summary>
     public sealed partial class Art
     {
-        public Sprite CatDrone, CatSaucer, CatBoss;
+        public Sprite CatDrone, CatDiver, CatSaucer, CatBoss;
         public Sprite PlayerPellet, EnemyOrb, PowerCapsule, HeartPickup;
         public Sprite IconHeart, IconHeartEmpty;
         public Sprite IconBomb, IconMagnet, IconRapid, IconWingman, IconShieldItem, IconLucky, IconWarp, IconGold, ShipLaser;
@@ -31,6 +31,7 @@ namespace TapOrDrag
         void BuildShooterArt()
         {
             CatDrone = MakeCatDrone(Pal.Hex("8f94b0"), Pal.Hex("c9cde0"));
+            CatDiver = MakeCatDrone(Pal.Hex("e0605a"), Pal.Hex("ff9a8f"));
             CatSaucer = MakeCatSaucer(Pal.Hex("8f94b0"), Pal.Hex("ff6fb5"), Pal.Hex("c23f86"));
             CatBoss = MakeCatSaucer(Pal.Hex("3b3552"), Pal.Hex("7a3dcc"), Pal.Hex("4a2290"));
 
