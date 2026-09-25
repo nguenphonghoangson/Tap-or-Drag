@@ -15,7 +15,7 @@ namespace TapOrDrag
         static readonly Vector2 BottomRight = new Vector2(1f, 0f);
 
         PixelText titleTop, titleMid, titleBottom, shooterPanelLine, waveText, weaponText, bossLabel, skillLabel, skillReadyText, bombCount, warningText, warningName;
-        RectTransform modePrev, modeNext, hangarButton, skillButton, bombButton;
+        RectTransform modePrev, modeNext, upgradesButton, itemsButton, skillButton, bombButton;
         Image shooterPanel, bossBack, bossFill, bossPhaseTick, skillFill, bombIcon;
         readonly Image[] heartIcons = new Image[MaxHeartIcons];
         Image[] buffIcons;
@@ -39,9 +39,15 @@ namespace TapOrDrag
             shooterPanel.rectTransform.sizeDelta = new Vector2(300f, 136f);
             PixelText.Create(shooterPanel.transform, "Move", "DRAG TO MOVE", Pal.OrangeLight, 3, Top, Top, new Vector2(0f, -18f));
             shooterPanelLine = PixelText.Create(shooterPanel.transform, "Fire", "AUTO FIRE - STOP THE CATS", Art.PelletColor, 2, Top, Top, new Vector2(0f, -50f));
-            hangarButton = NewButton(shooterPanel.transform, "Hangar", BottomMid, new Vector2(0f, 36f), new Vector2(200f, 46f), () => HangarOpenRequested?.Invoke());
-            AddPanel(hangarButton);
-            PixelText.Create(hangarButton, "Label", "HANGAR", Pal.Gold, 3, Mid, Mid, Vector2.zero);
+            // Two entry points into the hangar: each opens straight on its page.
+            upgradesButton = NewButton(shooterPanel.transform, "Upgrades", BottomMid, new Vector2(-70f, 34f), new Vector2(132f, 46f), () => HangarOpenRequested?.Invoke(0));
+            AddPanel(upgradesButton);
+            NewImage(upgradesButton, "Icon", art.PowerCapsule, 2f, new Vector2(0f, 0.5f), Mid, new Vector2(18f, 0f));
+            PixelText.Create(upgradesButton, "Label", "UPGRADES", Pal.Gold, 2, Mid, Mid, new Vector2(14f, 0f));
+            itemsButton = NewButton(shooterPanel.transform, "Items", BottomMid, new Vector2(70f, 34f), new Vector2(132f, 46f), () => HangarOpenRequested?.Invoke(1));
+            AddPanel(itemsButton);
+            NewImage(itemsButton, "Icon", art.IconBomb, 2f, new Vector2(0f, 0.5f), Mid, new Vector2(18f, 0f));
+            PixelText.Create(itemsButton, "Label", "ITEMS", Pal.Gold, 2, Mid, Mid, new Vector2(10f, 0f));
             shooterPanel.gameObject.SetActive(false);
 
             // Hearts: two rows of four so armor upgrades still fit left of the score.
@@ -102,7 +108,7 @@ namespace TapOrDrag
         }
 
         bool ShooterButtonHit(Vector2 screenPos) =>
-            Hit(modePrev, screenPos) || Hit(modeNext, screenPos) || Hit(hangarButton, screenPos)
+            Hit(modePrev, screenPos) || Hit(modeNext, screenPos) || Hit(upgradesButton, screenPos) || Hit(itemsButton, screenPos)
             || Hit(skillButton, screenPos) || Hit(bombButton, screenPos) || HangarButtonHit(screenPos) || CoreChoiceOpen;
 
         /// <summary>Title lines per mode: 0 flappy, 1 DOG BLAST, 2 CORE RUN.</summary>

@@ -45,7 +45,7 @@ namespace TapOrDrag
             hud.ModeStepRequested += StepMode;
             hud.SkillPressed += () => shooter.ActivateSkill();
             hud.BombPressed += () => shooter.UseBomb();
-            hud.HangarOpenRequested += () => SetHangar(true);
+            hud.HangarOpenRequested += tab => SetHangar(true, tab);
             hud.HangarCloseRequested += () => SetHangar(false);
             hud.UpgradeBuyRequested += OnUpgradeBuy;
             hud.ItemBuyRequested += OnItemBuy;
@@ -59,10 +59,10 @@ namespace TapOrDrag
 
         // ---------------------------------------------------------------- hangar
 
-        void SetHangar(bool open)
+        void SetHangar(bool open, int tab = -1)
         {
             if (open && (state != GameState.Ready || !ShooterMode)) return;
-            hud.ShowHangar(open, Economy.Coins);
+            hud.ShowHangar(open, Economy.Coins, tab);
             sound.Click();
         }
 

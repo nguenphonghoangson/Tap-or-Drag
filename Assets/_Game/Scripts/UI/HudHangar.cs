@@ -27,7 +27,8 @@ namespace TapOrDrag
         int hangarTab; // 0 upgrades, 1 items
 
         public bool HangarOpen { get; private set; }
-        public event System.Action HangarOpenRequested, HangarCloseRequested;
+        public event System.Action<int> HangarOpenRequested; // tab: 0 upgrades, 1 items
+        public event System.Action HangarCloseRequested;
         public event System.Action<UpgradeStat> UpgradeBuyRequested;
         public event System.Action<ItemKind> ItemBuyRequested, ItemToggleRequested;
 
@@ -82,8 +83,9 @@ namespace TapOrDrag
         /// <summary>While open, every screen point counts as a button so taps never start a run.</summary>
         bool HangarButtonHit(Vector2 screenPos) => HangarOpen;
 
-        public void ShowHangar(bool open, int coins)
+        public void ShowHangar(bool open, int coins, int tab = -1)
         {
+            if (tab >= 0) hangarTab = tab;
             HangarOpen = open;
             hangarRoot.gameObject.SetActive(open);
             hangarRoot.SetAsLastSibling();
