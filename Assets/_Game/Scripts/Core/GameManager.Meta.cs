@@ -48,7 +48,6 @@ namespace TapOrDrag
 
             missions.Load(); // the day may have rolled over
             RefreshMissionsUi();
-            hud.SetReadyPanel(runsPlayed >= cfg.missionsAfterRuns);
             hud.SetCoins(Economy.Coins, false);
 
             ResetGravity();
@@ -56,6 +55,7 @@ namespace TapOrDrag
             ResetHazards();
             biomeIndex = 0;
             background.SetBiome(art.Biomes[0], 0.8f);
+            ResetShooterMode();
         }
 
         /// <summary>Called from StartRun.</summary>

@@ -122,6 +122,15 @@ namespace TapOrDrag
             hatVelocity -= 3f;
         }
 
+        /// <summary>DOG BLAST mode: the saucer is moved directly; banks with horizontal speed, engine keeps flickering.</summary>
+        public void TickShooter(float dt, Vector2 position, float velocityX)
+        {
+            transform.position = new Vector3(position.x, position.y, 0f);
+            float target = Mathf.Clamp(-velocityX * 2.2f, -18f, 18f);
+            tilt = Mathf.MoveTowards(tilt, target, 240f * dt);
+            Animate(dt, 10f);
+        }
+
         public void SetShield(bool on) => shieldOn = on;
         public void StartInvulnerable(float seconds) => invulnerable = seconds;
         public void SetPhasing(bool on) => phasing = on;

@@ -86,9 +86,9 @@ namespace TapOrDrag
             Stretch(readyGroup);
             titleGroup = NewRect("Title", readyGroup);
             Stretch(titleGroup);
-            PixelText.Create(titleGroup, "Tap", "TAP", Pal.Orange, 8, Top, Top, new Vector2(0f, -70f));
-            PixelText.Create(titleGroup, "Or", "OR", Pal.White, 3, Top, Top, new Vector2(0f, -156f));
-            PixelText.Create(titleGroup, "Drag", "DRAG", Art.GateMain[0], 8, Top, Top, new Vector2(0f, -190f));
+            titleTop = PixelText.Create(titleGroup, "Tap", "TAP", Pal.Orange, 8, Top, Top, new Vector2(0f, -70f));
+            titleMid = PixelText.Create(titleGroup, "Or", "OR", Pal.White, 3, Top, Top, new Vector2(0f, -156f));
+            titleBottom = PixelText.Create(titleGroup, "Drag", "DRAG", Art.GateMain[0], 8, Top, Top, new Vector2(0f, -190f));
 
             // Skin picker: follows the idle bird (positioned in LateUpdate).
             skinSelector = NewRect("SkinSelector", readyGroup);
@@ -138,12 +138,13 @@ namespace TapOrDrag
             flash.color = new Color(1f, 1f, 1f, 0f);
 
             BuildMeta();
+            BuildShooterUi();
             RefreshMute();
             FitFrame();
         }
 
         public bool IsOverButton(Vector2 screenPos) =>
-            Hit(muteButton, screenPos) || Hit(skinLeft, screenPos) || Hit(skinRight, screenPos) || MetaButtonHit(screenPos);
+            Hit(muteButton, screenPos) || Hit(skinLeft, screenPos) || Hit(skinRight, screenPos) || MetaButtonHit(screenPos) || ShooterButtonHit(screenPos);
 
         static bool Hit(RectTransform rt, Vector2 screenPos) =>
             rt != null && rt.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);

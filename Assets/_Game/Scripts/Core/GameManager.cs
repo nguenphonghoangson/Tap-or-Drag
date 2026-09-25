@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace TapOrDrag
 {
-    public enum GameState { Ready, Playing, Dead }
+    public enum GameState { Ready, Playing, Dead, Shooter }
 
     enum ObstacleKind { Pipe, Gate, Enemy, RedGate, SwitchGate, Portal, SwitchWall, Icicle, Bats, Laser }
 
@@ -101,6 +101,7 @@ namespace TapOrDrag
             hud.SetBest(best, false);
             hud.SkinStepRequested += StepSkin;
             InitMeta();
+            InitShooter();
 
             equippedSkin = Mathf.Clamp(PlayerPrefs.GetInt(SkinKey, 0), 0, art.Skins.Length - 1);
             if (!IsSkinUnlocked(equippedSkin)) equippedSkin = 0;
@@ -158,7 +159,12 @@ namespace TapOrDrag
             {
                 case GameState.Ready: TickReady(dt); break;
                 case GameState.Playing: TickPlaying(dt); break;
-                case GameState.Dead: TickDead(dt); break;
+                case GameState.Dead:
+                    if (!shooterGameOver) TickDead(dt);
+                    break;
+                case GameState.Shooter:
+                    if (shooter.Running) shooter.Tick(dt);
+                    break;
             }
             fx.Tick(dt, worldSpeed);
             hud.Tick(Time.unscaledDeltaTime);
@@ -317,7 +323,8 @@ namespace TapOrDrag
             switch (state)
             {
                 case GameState.Ready:
-                    StartRun();
+                    if (mode == GameMode.Shooter) StartShooter();
+                    else StartRun();
                     break;
                 case GameState.Playing:
                     if (dashing) flapQueued = true;

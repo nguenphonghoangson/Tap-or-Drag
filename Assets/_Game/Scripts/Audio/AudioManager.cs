@@ -13,7 +13,7 @@ namespace TapOrDrag
         int nextVoice;
         float musicTarget = MusicVolume;
         AudioClip flap, pass, combo, dash, gateBreak, stomp, shieldPop, skillReady, feverStart, feverEnd, perfect, closeCall, smash,
-            coin, switchFlip, biome, mission, purchase, portalUp, portalDown, switchToggle, iceCrack, iceShatter, meteorWarn, meteorLaunch, miss, hit, zap, fall, thud, gameOver, newBest, click, start;
+            coin, switchFlip, biome, mission, purchase, portalUp, portalDown, switchToggle, iceCrack, iceShatter, meteorWarn, meteorLaunch, shoot, enemyHit, explode, bigExplode, powerUp, bossAlarm, miss, hit, zap, fall, thud, gameOver, newBest, click, start;
 
         public bool Muted { get; private set; }
 
@@ -59,6 +59,20 @@ namespace TapOrDrag
             biome = Synth.Clip("Biome", Synth.Seq(
                 (0f, Synth.Tone(0.7f, 300f, 4000f, W.Noise, 0.1f, decay: 0.6f, curve: 0.6f)),
                 (0.1f, Synth.Arp(0.09f, new[] { 392f, 523f, 659f, 784f }, W.Triangle, 0.2f, decay: 0.8f))));
+            shoot = Synth.Clip("Shoot", Synth.Tone(0.05f, 1400f, 700f, W.Square, 0.06f, 0.25f, 1.5f));
+            enemyHit = Synth.Clip("EnemyHit", Synth.Tone(0.03f, 2500f, 1800f, W.Noise, 0.12f));
+            explode = Synth.Clip("Explode", Synth.Seq(
+                (0f, Synth.Tone(0.25f, 3000f, 300f, W.Noise, 0.3f, decay: 1.3f)),
+                (0f, Synth.Tone(0.2f, 220f, 60f, W.Square, 0.15f))));
+            bigExplode = Synth.Clip("BigExplode", Synth.Seq(
+                (0f, Synth.Tone(0.8f, 2500f, 150f, W.Noise, 0.45f, decay: 0.9f)),
+                (0f, Synth.Tone(0.7f, 160f, 35f, W.Sine, 0.5f, decay: 0.8f)),
+                (0.15f, Synth.Tone(0.5f, 1800f, 200f, W.Noise, 0.3f))));
+            powerUp = Synth.Clip("PowerUp", Synth.Arp(0.05f, new[] { 523f, 784f, 1047f, 1568f, 2093f }, W.Square, 0.13f, 0.25f));
+            bossAlarm = Synth.Clip("BossAlarm", Synth.Seq(
+                (0f, Synth.Tone(0.35f, 440f, 880f, W.Square, 0.14f, 0.5f, 0.3f)),
+                (0.4f, Synth.Tone(0.35f, 440f, 880f, W.Square, 0.14f, 0.5f, 0.3f)),
+                (0.8f, Synth.Tone(0.35f, 440f, 880f, W.Square, 0.14f, 0.5f, 0.3f))));
             iceCrack = Synth.Clip("IceCrack", Synth.Tone(0.25f, 5000f, 2500f, W.Noise, 0.12f, decay: 0.4f, vibratoHz: 40f, vibratoDepth: 0.3f));
             iceShatter = Synth.Clip("IceShatter", Synth.Seq(
                 (0f, Synth.Tone(0.22f, 7000f, 2000f, W.Noise, 0.3f, decay: 1.3f)),
@@ -170,6 +184,12 @@ namespace TapOrDrag
         public void SwitchFlip() => Play(switchFlip);
         public void Biome() => Play(biome, 0.8f);
         public void Mission() => Play(mission);
+        public void Shoot() => Play(shoot, 0.5f, Random.Range(0.95f, 1.05f));
+        public void EnemyHit() => Play(enemyHit, 0.5f, Random.Range(0.9f, 1.2f));
+        public void Explode() => Play(explode, 0.8f, Random.Range(0.85f, 1.15f));
+        public void BigExplode() => Play(bigExplode);
+        public void PowerUp() => Play(powerUp);
+        public void BossAlarm() => Play(bossAlarm, 0.8f);
         public void IceCrack() => Play(iceCrack, 0.7f);
         public void IceShatter() => Play(iceShatter, 0.8f, Random.Range(0.9f, 1.1f));
         public void MeteorWarn() => Play(meteorWarn, 0.8f);

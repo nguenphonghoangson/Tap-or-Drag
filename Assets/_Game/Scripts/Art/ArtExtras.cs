@@ -37,6 +37,7 @@ namespace TapOrDrag
             BuildPortal();
             BuildSwitchBlocks();
             BuildHazards();
+            BuildShooterArt();
             BuildMetaIcons();
             BuildBiomes();
         }

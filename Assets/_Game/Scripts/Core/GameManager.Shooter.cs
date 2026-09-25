@@ -1,0 +1,119 @@
+using UnityEngine;
+
+namespace TapOrDrag
+{
+    public enum GameMode { Flappy, Shooter }
+
+    /// <summary>
+    /// Mode selection and the DOG BLAST shooter hand-off. The shooter owns its own world (ShooterGame); this file
+    /// hides the flappy scenery while it runs, routes rewards into the shared economy/missions, and shows game over.
+    /// </summary>
+    public partial class GameManager
+    {
+        const string ModeKey = "TapOrDrag.Mode";
+        const string BestShooterKey = "TapOrDrag.BestShooter";
+
+        ShooterGame shooter;
+        GameMode mode;
+        int bestShooter;
+        bool shooterGameOver; // Dead state reached from the shooter: skip the flappy death animation
+
+        void InitShooter()
+        {
+            shooter = Create<ShooterGame>("Shooter");
+            shooter.Build(cfg, art, fx, sound, hud, bird, hud.IsOverButton);
+            shooter.Finished += OnShooterFinished;
+            shooter.BoneCollected += () =>
+            {
+                runCoins++;
+                Economy.Add(1);
+                missions.Add(MissionType.CollectCoins);
+                hud.SetCoins(Economy.Coins, true);
+            };
+            shooter.EnemyKilled += () => missions.Add(MissionType.StompEnemies);
+            mode = (GameMode)Mathf.Clamp(PlayerPrefs.GetInt(ModeKey, 0), 0, 1);
+            bestShooter = PlayerPrefs.GetInt(BestShooterKey, 0);
+            hud.ModeStepRequested += StepMode;
+        }
+
+        void StepMode(int direction)
+        {
+            if (state != GameState.Ready) return;
+            mode = mode == GameMode.Flappy ? GameMode.Shooter : GameMode.Flappy;
+            PlayerPrefs.SetInt(ModeKey, (int)mode);
+            PlayerPrefs.Save();
+            ApplyModeUi();
+            bird.Pop();
+            sound.Click();
+        }
+
+        void ApplyModeUi()
+        {
+            bool shooterMode = mode == GameMode.Shooter;
+            hud.SetMode(shooterMode);
+            hud.SetBest(shooterMode ? bestShooter : best, false);
+            hud.SetReadyPanel(runsPlayed >= cfg.missionsAfterRuns, shooterMode);
+        }
+
+        /// <summary>Called from EnterReady: leave the shooter world and bring the flappy scenery back.</summary>
+        void ResetShooterMode()
+        {
+            if (shooter.Running) shooter.End();
+            shooterGameOver = false;
+            background.gameObject.SetActive(true);
+            bird.gameObject.SetActive(true);
+            ApplyModeUi();
+        }
+
+        void StartShooter()
+        {
+            if (skinIndex != equippedSkin)
+            {
+                skinIndex = equippedSkin; // a locked skin was only being previewed
+                ApplySkin();
+            }
+            bird.SetShield(false); // flappy skills do not apply in the shooter
+            state = GameState.Shooter;
+            stateTime = 0f;
+            runCoins = 0;
+            BeginRunMeta();
+            background.gameObject.SetActive(false);
+            hud.ShowPlaying();
+            shooter.Begin();
+            sound.RunStart();
+        }
+
+        void OnShooterFinished(int finalScore, int bonesCollected)
+        {
+            shooter.End();
+            bool newBest = finalScore > bestShooter;
+            if (newBest)
+            {
+                bestShooter = finalScore;
+                PlayerPrefs.SetInt(BestShooterKey, bestShooter);
+            }
+            state = GameState.Dead;
+            shooterGameOver = true;
+            stateTime = 0f;
+            gameOverShown = true;
+            retryAt = 0.6f;
+            runsPlayed++;
+            PlayerPrefs.SetInt(RunsKey, runsPlayed);
+            hud.SetBest(bestShooter, newBest);
+            hud.ShowGameOver(finalScore, bestShooter, newBest, bonesCollected);
+            if (newBest) sound.NewBest();
+            else sound.GameOver();
+            missions.Record(MissionType.ScoreInRun, finalScore);
+            SaveMeta();
+
+            PlaytestStats.Log(new PlaytestStats.Run
+            {
+                Skin = SkinDef.All[equippedSkin].Name,
+                DeathCause = "SHOOTER",
+                Duration = Time.time - runStartTime,
+                Score = finalScore,
+                Coins = bonesCollected,
+            });
+        }
+    }
+}

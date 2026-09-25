@@ -127,6 +127,27 @@ namespace TapOrDrag
         public int biomeEveryClears = 20;
         public float biomeFadeSeconds = 1.5f;
 
+        [Header("DOG BLAST shooter mode (drag to move, auto fire)")]
+        public int shooterHearts = 3;
+        public int shooterMaxHearts = 5;
+        public float shooterFireInterval = 0.11f;
+        public float shooterBulletSpeed = 18f;
+        [Tooltip("Shmup-style small hitbox at the centre of the saucer.")]
+        public float shooterHitRadius = 0.22f;
+        public float shooterInvulnerable = 1.6f;
+        public float shooterDragSensitivity = 1f;
+        public float shooterKeyboardSpeed = 9f;
+        public float shooterSpawnIntervalStart = 1.2f;
+        public float shooterSpawnIntervalMin = 0.45f;
+        [Tooltip("Seconds removed from the spawn interval per second of play.")]
+        public float shooterSpawnRamp = 0.008f;
+        public float shooterEnemyBulletSpeed = 5f;
+        public float shooterBossEvery = 70f;
+        public int shooterBossHp = 120;
+        public int shooterBossHpGrowth = 60;
+        [Range(0f, 1f)] public float shooterPowerDropChance = 0.06f;
+        [Range(0f, 1f)] public float shooterHeartDropChance = 0.03f;
+
         [Header("Title screen")]
         [Tooltip("Show daily missions instead of the controls tutorial after this many runs.")]
         public int missionsAfterRuns = 3;
