@@ -114,14 +114,17 @@ namespace TapOrDrag
         }
 
         /// <summary>Title screen: the idle dog is shown in its fighter jet when DOG BLAST is selected.</summary>
+        const float JetPreviewLift = 1.3f; // world units the jet selector sits above the flappy title position
+
         void TickJetPreview()
         {
+            if (state == GameState.Ready) hud.SetSelectorAnchor(new Vector3(0f, ReadyBirdY + (ShooterMode ? JetPreviewLift : 0f), 0f));
             bool show = state == GameState.Ready && ShooterMode;
             jetPreview.enabled = show;
             if (!show) return;
             jetPreview.sprite = art.Jets[skinIndex][0];
             jetPreview.color = IsSkinUnlocked(skinIndex) ? Color.white : new Color(0.12f, 0.07f, 0.2f);
-            jetPreview.transform.position = new Vector3(0f, bird.transform.position.y, 0f); // centred: the jet is the hero here
+            jetPreview.transform.position = new Vector3(0f, bird.transform.position.y + JetPreviewLift, 0f); // centred: the jet is the hero here
         }
 
         /// <summary>Called from EnterReady: leave the shooter world and bring the flappy scenery back.</summary>
