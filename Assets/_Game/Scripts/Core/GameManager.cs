@@ -459,10 +459,10 @@ namespace TapOrDrag
             feverReadyAt = 0;
             feverEndTime = -999f;
             perfectTarget = null;
-            bird.ResetAt(ReadyBirdY);
+            bird.ResetAt(ReadyBirdY, 0f); // centred on the title screen in every mode
             ApplySkin();
             ResetRunMeta();
-            hud.SetSelectorAnchor(new Vector3(World.BirdX, ReadyBirdY, 0f));
+            hud.SetSelectorAnchor(new Vector3(0f, ReadyBirdY, 0f));
             hud.ShowReady();
             hud.SetScore(0, 1, false);
             sound.DuckMusic(false);
@@ -482,6 +482,7 @@ namespace TapOrDrag
             nextSpawnX = World.BirdX + cfg.firstObstacleDistance;
             nextKind = ObstacleKind.Pipe;
             lastGapCenter = bird.Position.y;
+            bird.SlideToPlayX();
             hud.ShowPlaying();
             BeginRunMeta();
             sound.RunStart();

@@ -116,7 +116,6 @@ namespace TapOrDrag
         /// <summary>Title screen: the idle dog is shown in its fighter jet when DOG BLAST is selected.</summary>
         void TickJetPreview()
         {
-            if (state == GameState.Ready) hud.SetSelectorAnchor(new Vector3(ShooterMode ? 0f : World.BirdX, ReadyBirdY, 0f));
             bool show = state == GameState.Ready && ShooterMode;
             jetPreview.enabled = show;
             if (!show) return;

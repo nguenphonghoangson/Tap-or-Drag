@@ -72,9 +72,13 @@ namespace TapOrDrag
             bubble.enabled = false;
         }
 
-        public void ResetAt(float y)
+        public void ResetAt(float y) => ResetAt(y, World.BirdX);
+
+        /// <summary>Place at <paramref name="x"/> (the title screen uses the centre; runs slide to <see cref="World.BirdX"/>).</summary>
+        public void ResetAt(float y, float x)
         {
-            transform.position = new Vector3(World.BirdX, y, 0f);
+            transform.position = new Vector3(x, y, 0f);
+            slideTime = -1f;
             baseY = y;
             Vy = 0f;
             Dashing = Dead = Grounded = false;
@@ -204,8 +208,30 @@ namespace TapOrDrag
             Animate(dt, 9f);
         }
 
+        const float SlideSeconds = 0.45f;
+        float slideFromX, slideTime = -1f;
+
+        /// <summary>Glide from the centred title position to the play column when a run starts.</summary>
+        public void SlideToPlayX()
+        {
+            slideFromX = transform.position.x;
+            slideTime = Mathf.Approximately(slideFromX, World.BirdX) ? -1f : 0f;
+        }
+
+        void TickSlide(float dt)
+        {
+            if (slideTime < 0f) return;
+            slideTime += dt;
+            float k = Mathf.Clamp01(slideTime / SlideSeconds);
+            var p = transform.position;
+            p.x = Mathf.Lerp(slideFromX, World.BirdX, 1f - (1f - k) * (1f - k) * (1f - k));
+            transform.position = p;
+            if (k >= 1f) slideTime = -1f;
+        }
+
         public void TickPlay(float dt)
         {
+            TickSlide(dt);
             if (!Dashing)
             {
                 float maxFall = cfg.maxFallSpeed * FallScale;
@@ -220,6 +246,7 @@ namespace TapOrDrag
 
         public void TickDead(float dt)
         {
+            TickSlide(dt);
             if (!Grounded)
             {
                 Vy = Mathf.Max(Vy - cfg.gravity * dt, -cfg.maxFallSpeed * 1.3f);
