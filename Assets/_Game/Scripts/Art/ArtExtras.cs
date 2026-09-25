@@ -52,10 +52,10 @@ namespace TapOrDrag
             ".KK.......KK.",
         };
 
-        /// <summary>Bone pickup (kept in the Coin fields so the economy code is unchanged). Coin.cs wobbles it.</summary>
+        /// <summary>Golden bone pickup (kept in the Coin fields so the economy code is unchanged). Coin.cs wobbles it.</summary>
         void BuildCoins()
         {
-            var pal = new Dictionary<char, Color32> { { 'K', Pal.Ink }, { 'W', Pal.Hex("fff6e0") }, { 'S', Pal.Hex("d9c9a8") } };
+            var pal = new Dictionary<char, Color32> { { 'K', Pal.Ink }, { 'W', Pal.Gold }, { 'S', Pal.Hex("d99a1e") } }; // golden, so it never reads as a bone pillar
             Coin = new[] { PixelCanvas.FromMap(BoneMap, pal).ToSprite(Center) };
             IconCoin = Coin[0];
         }

@@ -334,65 +334,71 @@ namespace TapOrDrag
             return result;
         }
 
-        // ---------------------------------------------------------------- Pipes
+        // ---------------------------------------------------------------- Pillars (giant bones in the dog version)
 
-        static Color32[] PipeColumns()
+        public static readonly Color32 BoneHighlight = Pal.Hex("ffffff");
+        public static readonly Color32 BoneLight = Pal.Hex("fffaf0");
+        public static readonly Color32 BoneBase = Pal.Hex("f3ead2");
+        public static readonly Color32 BoneShade = Pal.Hex("d8c9a3");
+        public static readonly Color32 BoneDeep = Pal.Hex("b8a47e");
+
+        /// <summary>Cylinder shading across the 24px shaft, lit from the left.</summary>
+        static Color32[] BoneColumns()
         {
-            string[] hex =
-            {
-                "2a1633", "b8471a", "e8661f", "ffb35c", "ffe0a6", "ffb35c", "ff9a3a", "ff8a2a",
-                "ff8a2a", "ff8a2a", "ff8a2a", "ff8a2a", "ff8a2a", "ff8a2a", "f57a22", "f57a22",
-                "f57a22", "e8661f", "e8661f", "d4561b", "c24b1a", "a83d17", "8f3314", "2a1633",
-            };
-            var cols = new Color32[hex.Length];
-            for (int i = 0; i < hex.Length; i++) cols[i] = Pal.Hex(hex[i]);
+            var cols = new Color32[24];
+            for (int x = 0; x < 24; x++)
+                cols[x] = x == 0 || x == 23 ? Pal.Ink
+                    : x == 1 ? BoneDeep : x == 2 ? BoneShade : x == 4 || x == 6 ? BoneLight : x == 5 ? BoneHighlight
+                    : x <= 14 ? BoneBase : x <= 18 ? BoneShade : BoneDeep;
             return cols;
         }
 
+        /// <summary>
+        /// Pipe sprites drawn as a giant bone: a speckled shaft tile (tiled along the pillar) and a knob end with two
+        /// round lobes at the gap edge. Sizes match the old pipe (24px shaft, 28px end) so collisions are unchanged.
+        /// </summary>
         void BuildPipe()
         {
-            var cols = PipeColumns();
+            var cols = BoneColumns();
 
-            // Body: 24x16 tile with a segment band and rivets, drawn tiled along the pipe length.
             var body = new PixelCanvas(24, 16);
             for (int y = 0; y < 16; y++)
             for (int x = 0; x < 24; x++)
             {
                 var c = cols[x];
-                if (x > 0 && x < 23)
-                {
-                    if (y == 0) c = Pal.Shade(c, 0.78f);
-                    else if (y == 1) c = Pal.Shade(c, 1.18f);
-                }
+                if (x > 2 && x < 21 && Hash(x, y, 11) % 29 == 0) c = BoneShade; // porous speckles
                 body.Set(x, y, c);
             }
-            body.Set(5, 7, Pal.Hex("ffe0a6"));
-            body.Set(5, 8, Pal.Hex("c24b1a"));
-            body.Set(19, 7, Pal.Hex("ff9a3a"));
-            body.Set(19, 8, Pal.Hex("8f3314"));
             PipeBody = body.ToSprite(Center);
 
-            // Cap: 28x12, top edge is the gap edge, bottom row is a soft shadow onto the body.
-            var cap = new PixelCanvas(28, 12);
-            for (int x = 1; x < 27; x++)
+            // Knob end, 28x13. Top row = gap edge; the neck at the bottom is flush with the shaft's ink columns.
+            const int w = 28, h = 13;
+            var fill = new bool[w, h];
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
             {
-                cap.Set(x, 0, Pal.Ink);
-                cap.Set(x, 10, Pal.Ink);
+                var p = new Vector2(x + 0.5f, y + 0.5f);
+                bool lobe = Vector2.Distance(p, new Vector2(7.5f, 6.5f)) <= 6.6f || Vector2.Distance(p, new Vector2(20.5f, 6.5f)) <= 6.6f;
+                bool neck = y >= 6 && x >= 3 && x <= 24;
+                fill[x, y] = lobe || neck;
             }
-            for (int y = 1; y < 10; y++)
+            var cap = new PixelCanvas(w, h);
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
             {
-                cap.Set(0, y, Pal.Ink);
-                cap.Set(27, y, Pal.Ink);
-                for (int x = 1; x < 27; x++)
+                if (!fill[x, y]) continue;
+                float lobeX = x < 14 ? 7.5f : 20.5f;
+                float dx = (x + 0.5f - lobeX) / 6.6f, dy = (y + 0.5f - 6.5f) / 6.6f;
+                Color32 c;
+                if (dx * dx + dy * dy <= 1f)
                 {
-                    var c = Pal.Shade(cols[Mathf.Clamp(Mathf.RoundToInt(x * 23f / 27f), 1, 22)], 1.06f);
-                    if (y == 1) c = Pal.Shade(c, 1.3f);
-                    else if (y == 2) c = Pal.Shade(c, 1.1f);
-                    else if (y == 9) c = Pal.Shade(c, 0.78f);
-                    cap.Set(x, y, c);
+                    float light = -dx * 0.75f - dy * 0.65f;
+                    c = light > 0.62f ? BoneHighlight : light > 0.25f ? BoneLight : light < -0.72f ? BoneDeep : light < -0.3f ? BoneShade : BoneBase;
                 }
+                else c = cols[Mathf.Clamp(x - 2, 1, 22)];
+                cap.Set(x, y, c);
             }
-            for (int x = 3; x < 25; x++) cap.Set(x, 11, new Color32(18, 10, 31, 110));
+            cap.Outline(Pal.Ink, false);
             PipeCap = cap.ToSprite(TopCenter);
         }
 
@@ -854,8 +860,8 @@ namespace TapOrDrag
 
             var pipePal = new Dictionary<char, Color32>
             {
-                { 'K', Pal.Ink }, { 'h', Pal.Hex("ffe0a6") }, { 'O', Pal.Hex("ffb35c") }, { 'o', Pal.Hex("ff8a2a") },
-                { 'd', Pal.Hex("e8661f") }, { 'D', Pal.Hex("c24b1a") },
+                { 'K', Pal.Ink }, { 'h', BoneHighlight }, { 'O', BoneLight }, { 'o', BoneBase },
+                { 'd', BoneShade }, { 'D', BoneDeep },
             };
             IconPipe = PixelCanvas.FromMap(PipeIconMap, pipePal).ToSprite(Center);
 

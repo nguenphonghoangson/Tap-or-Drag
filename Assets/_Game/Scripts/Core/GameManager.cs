@@ -605,7 +605,7 @@ namespace TapOrDrag
                 missions.Add(MissionType.PassPipes);
                 var at = new Vector2(pipe.X, pipe.GapCenter);
                 fx.PipePass(at, worldSpeed);
-                fx.Float("+" + points, Pal.OrangeLight, at + new Vector2(0f, 0.3f), 1.2f, worldSpeed * 0.5f);
+                fx.Float("+" + points, Art.BoneLight, at + new Vector2(0f, 0.3f), 1.2f, worldSpeed * 0.5f);
                 sound.Pass(multiplier);
             }
 

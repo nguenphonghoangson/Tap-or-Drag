@@ -98,13 +98,13 @@ namespace TapOrDrag
             for (int i = 0; i < 6; i++)
             {
                 float a = Random.value * Mathf.PI * 2f;
-                Emit(sparkle, pos, new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * Random.Range(1.5f, 3.5f), i % 2 == 0 ? Pal.Hex("fff6e0") : Pal.White, PixelSize(1, 2), 0.3f);
+                Emit(sparkle, pos, new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * Random.Range(1.5f, 3.5f), i % 2 == 0 ? Pal.Gold : Pal.White, PixelSize(1, 2), 0.3f);
             }
         }
 
         public void PipePass(Vector2 pos, float worldSpeed)
         {
-            Burst(pos, Pal.Orange, Pal.OrangeLight, 18, 6f, worldSpeed * 0.8f, true);
+            Burst(pos, Art.BoneBase, Art.BoneLight, 18, 6f, worldSpeed * 0.8f, true);
             Burst(pos, Pal.White, Pal.Gold, 8, 3f, worldSpeed * 0.8f, false, 0.4f);
         }
 
@@ -139,7 +139,7 @@ namespace TapOrDrag
                 float y = top ? pipe.GapTop + Random.Range(0f, 3.5f) : pipe.GapBottom - Random.Range(0f, 3.5f);
                 var pos = new Vector2(pipe.X + Random.Range(-0.7f, 0.7f), y);
                 var vel = new Vector2(Random.Range(-1f, 6f) - worldSpeed * 0.5f, (top ? 1f : -1f) * Random.Range(1f, 6f));
-                Color32 c = i % 3 == 0 ? Pal.Hex("ffe0a6") : i % 3 == 1 ? Pal.Orange : Pal.Hex("c24b1a");
+                Color32 c = i % 3 == 0 ? Art.BoneLight : i % 3 == 1 ? Art.BoneBase : Art.BoneShade; // bone shards
                 Emit(debris, pos, vel, c, PixelSize(2, 5), Random.Range(0.4f, 0.9f));
             }
         }
