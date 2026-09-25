@@ -98,7 +98,7 @@ namespace TapOrDrag
             for (int i = 0; i < 6; i++)
             {
                 float a = Random.value * Mathf.PI * 2f;
-                Emit(sparkle, pos, new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * Random.Range(1.5f, 3.5f), i % 2 == 0 ? Pal.Gold : Pal.White, PixelSize(1, 2), 0.3f);
+                Emit(sparkle, pos, new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * Random.Range(1.5f, 3.5f), i % 2 == 0 ? Pal.Hex("fff6e0") : Pal.White, PixelSize(1, 2), 0.3f);
             }
         }
 

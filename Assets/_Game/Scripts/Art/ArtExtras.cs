@@ -16,7 +16,7 @@ namespace TapOrDrag
             public bool Snow; // snowfall layers in the background
         }
 
-        public Sprite[] Coin;          // spin frames
+        public Sprite[] Coin;          // pickup frames (a bone in the dog version)
         public Sprite IconCoin, IconCheck;
         public Sprite[][] PortalBeam;  // [0 = flips gravity up, 1 = back down][frame], chevrons show the new "down"
         public static readonly Color32 PortalMain = Pal.Hex("b58cff");
@@ -39,32 +39,24 @@ namespace TapOrDrag
             BuildBiomes();
         }
 
-        // ---------------------------------------------------------------- Coins
+        // ---------------------------------------------------------------- Bones (the collectible currency)
 
+        static readonly string[] BoneMap =
+        {
+            ".KK.......KK.",
+            "KWWK.....KWWK",
+            "KWWWKKKKKWWSK",
+            ".KWWWWWWWWWK.",
+            "KWWSKKKKKSWSK",
+            "KWSK.....KSSK",
+            ".KK.......KK.",
+        };
+
+        /// <summary>Bone pickup (kept in the Coin fields so the economy code is unchanged). Coin.cs wobbles it.</summary>
         void BuildCoins()
         {
-            Color32 gold = Pal.Hex("ffd23f"), light = Pal.Hex("fff3a8"), shade = Pal.Hex("d99a1e"), mark = Pal.Hex("e8a820");
-            float[] halfWidths = { 4.5f, 3.2f, 1.0f, 3.2f };
-            Coin = new Sprite[halfWidths.Length];
-            for (int f = 0; f < halfWidths.Length; f++)
-            {
-                var pc = new PixelCanvas(12, 12);
-                float hw = halfWidths[f];
-                for (int y = 0; y < 12; y++)
-                for (int x = 0; x < 12; x++)
-                {
-                    float nx = (x + 0.5f - 6f) / hw, ny = (y + 0.5f - 6f) / 4.5f;
-                    float d = nx * nx + ny * ny;
-                    if (d > 1f) continue;
-                    Color32 c = gold;
-                    if (nx < -0.45f) c = light;
-                    else if (nx > 0.45f) c = shade;
-                    if (hw > 2f && d > 0.3f && d < 0.5f) c = mark; // embossed rim
-                    pc.Set(x, y, c);
-                }
-                pc.Outline(Pal.Ink, false);
-                Coin[f] = pc.ToSprite(Center);
-            }
+            var pal = new Dictionary<char, Color32> { { 'K', Pal.Ink }, { 'W', Pal.Hex("fff6e0") }, { 'S', Pal.Hex("d9c9a8") } };
+            Coin = new[] { PixelCanvas.FromMap(BoneMap, pal).ToSprite(Center) };
             IconCoin = Coin[0];
         }
 

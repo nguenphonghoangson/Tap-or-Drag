@@ -90,7 +90,11 @@ namespace TapOrDrag
                 (0f, Synth.Arp(0.09f, new[] { 523f, 659f, 784f, 1047f, 1319f }, W.Square, 0.14f, 0.25f)),
                 (0.45f, Synth.Tone(0.45f, 1568f, 1568f, W.Square, 0.14f, 0.25f, 0.8f, vibratoHz: 7f, vibratoDepth: 0.01f))));
             click = Synth.Clip("Click", Synth.Tone(0.05f, 1400f, 1400f, W.Square, 0.12f, 0.25f));
-            start = Synth.Clip("Start", Synth.Arp(0.06f, new[] { 659f, 988f }, W.Square, 0.15f));
+            // Two short barks: a pitched square "wuh" with a noisy attack.
+            var bark = Synth.Seq(
+                (0f, Synth.Tone(0.03f, 3000f, 1200f, W.Noise, 0.2f)),
+                (0f, Synth.Tone(0.11f, 620f, 330f, W.Square, 0.22f, 0.35f, 1.2f, curve: 0.6f, vibratoHz: 35f, vibratoDepth: 0.06f)));
+            start = Synth.Clip("Start", Synth.Seq((0f, bark), (0.16f, bark)));
 
             music = gameObject.AddComponent<AudioSource>();
             music.clip = Synth.Clip("Music", Synth.Music());

@@ -48,54 +48,59 @@ namespace TapOrDrag
             return art;
         }
 
-        // ---------------------------------------------------------------- Bird
+        // ---------------------------------------------------------------- Dog (the player character)
+        // Chibi puppy facing right: muzzle with nose and hanging tongue, collar rows (see PaintScarfBand), tiny paws.
+        // It flies by flapping its floppy ear, which replaces the bird's wing frames (up / mid / down).
+        // Palette keys: Y fur, L light fur, D shade, W/E eye, N nose, T tongue, P blush, w/g ear.
 
         static readonly string[] BirdBody =
         {
-            "......KKKKKK......",
-            "....KKYYYYYYKK....",
-            "...KYLLYYYYWWWK...",
-            "..KYLYYYYYYWWEEK..",
-            "..KYLYYYYYYWWEEK..",
-            ".KYYYYYYYYYYWWWK..",
-            ".KYYYYYYYYYYYKKBK.",
-            ".KYYYYYYYYYYKBBBBK",
-            ".KDYYYYYYYYPPKbbbK",
-            ".KDDYYYYYYYYYYKKK.",
-            "..KDDYYYYYYYYYDK..",
-            "...KDDDYYYYYDDK...",
+            "....KKKKKKK.......",
+            "...KYYYYYYYKK.....",
+            "..KYLYYYYYYYYK....",
+            "..KYYYYYYYYWWEK...",
+            ".KYYYYYYYYYWEEK...",
+            ".KYYYYYYYYYYYLKKK.",
+            "KYYYYYYYYYYYLLLLNK",
+            "KYDYYYYYYYYLLLLLLK",
+            ".KDYYYYYYYYPKKKKKK",
+            "..KDYYYYYYYYYKTTK.",
+            "..KDDYYYYYYYYKTK..",
+            "...KDDYYYYYYDKK...",
             "....KKDDDDDDKK....",
             "......KKKKKK......",
+            ".....KLK..KLK.....",
         };
 
         static readonly string[] WingUp =
         {
-            "KK.......",
-            "KwK......",
-            "KwwKK....",
-            "KwwwwKK..",
-            ".KwwwwwKK",
-            ".KggwwwwK",
-            "..KKKKKK.",
+            "KK...",
+            "KwK..",
+            "KwwK.",
+            "KwgwK",
+            "KwggK",
+            ".KwgK",
+            "..KK.",
         };
 
         static readonly string[] WingMid =
         {
-            "KKKKKK...",
-            "KwwwwwKK.",
-            "KwwwwwwwK",
-            ".KgggwwwK",
-            "..KKKKKK.",
+            "..KKKKK",
+            ".KwwwwK",
+            "KwggwwK",
+            "KwgwwK.",
+            ".KKKK..",
         };
 
         static readonly string[] WingDown =
         {
-            "..KKKKKK.",
-            ".KwwwwwwK",
-            "KwwwwwwK.",
-            "KggwwKK..",
-            "KgKK.....",
-            "KK.......",
+            ".KKK.",
+            "KwwwK",
+            "KwgwK",
+            "KwgwK",
+            "KwgwK",
+            ".KwgK",
+            "..KK.",
         };
 
         /// <summary>Per-skin sprite set built from the shared bird map.</summary>
@@ -121,11 +126,11 @@ namespace TapOrDrag
             {
                 { 'K', Pal.Ink }, { 'W', Pal.White }, { 'E', Pal.Ink },
                 { 'Y', Pal.Hex(def.Body) }, { 'L', Pal.Hex(def.BodyLight) }, { 'D', Pal.Hex(def.BodyShade) },
-                { 'B', Pal.Hex(def.Beak) }, { 'b', Pal.Hex(def.BeakShade) }, { 'P', Pal.Hex(def.Cheek) },
+                { 'T', Pal.Hex(def.Beak) }, { 'N', Pal.Hex(def.BeakShade) }, { 'P', Pal.Hex(def.Cheek) },
                 { 'w', Pal.Hex(def.Wing) }, { 'g', Pal.Hex(def.WingShade) },
             };
             string[][] wings = { WingUp, WingMid, WingDown };
-            Vector2Int[] wingPos = { new Vector2Int(1, 3), new Vector2Int(1, 8), new Vector2Int(1, 9) };
+            Vector2Int[] wingPos = { new Vector2Int(4, 0), new Vector2Int(1, 4), new Vector2Int(5, 3) }; // ear: raised, swept back, hanging
             string[] closed = CloseEyes(BirdBody);
             bool hasScarf = def.Scarf != null;
             Color32 scarfMain = default, scarfDark = default, scarfLight = default;
@@ -262,13 +267,13 @@ namespace TapOrDrag
 
         // ---------------------------------------------------------------- Scarf
 
-        /// <summary>Knit scarf around the neck: two rows just under the beak, recolouring body pixels only (outline stays).</summary>
+        /// <summary>Collar: two rows between head and body, recolouring fur only (outline stays); stops before the tongue.</summary>
         static void PaintScarfBand(PixelCanvas pc, Color32 main, Color32 dark, Color32 light)
         {
-            for (int x = 0; x < pc.Width; x++)
+            for (int x = 0; x < 15; x++)
             {
-                RecolorBody(pc, x, 11, x % 4 == 0 ? light : main);
-                RecolorBody(pc, x, 12, dark);
+                RecolorBody(pc, x, 12, x % 4 == 0 ? light : main);
+                RecolorBody(pc, x, 13, dark);
             }
         }
 

@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace TapOrDrag
 {
-    /// <summary>Player: flappy physics, dash freeze, and sprite animation (wing cycle, blink, tilt, squash).</summary>
+    /// <summary>Player (a flying puppy that flaps its ears): flappy physics, dash freeze, and sprite animation (wing cycle, blink, tilt, squash).</summary>
     public class Bird : MonoBehaviour
     {
         static readonly int[] WingCycle = { 0, 1, 2, 1 };
@@ -237,7 +237,7 @@ namespace TapOrDrag
         void Animate(float dt, float wingRate)
         {
             wingBoost = Mathf.MoveTowards(wingBoost, 0f, dt * 2.5f);
-            if (Dashing) WingFrame = 0;
+            if (Dashing) WingFrame = 1; // ears streaming back
             else if (Dead) WingFrame = 2;
             else
             {

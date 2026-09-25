@@ -31,7 +31,7 @@ namespace TapOrDrag
             new MissionDef { Type = MissionType.Fevers, Target = 2, Reward = 80, Label = "REACH FEVER" },
             new MissionDef { Type = MissionType.ScoreInRun, Target = 100, Reward = 60, Label = "RUN SCORE" },
             new MissionDef { Type = MissionType.ScoreInRun, Target = 250, Reward = 100, Label = "RUN SCORE" },
-            new MissionDef { Type = MissionType.CollectCoins, Target = 40, Reward = 50, Label = "GET COINS" },
+            new MissionDef { Type = MissionType.CollectCoins, Target = 40, Reward = 50, Label = "GET BONES" },
             new MissionDef { Type = MissionType.CloseCalls, Target = 5, Reward = 70, Label = "CLOSE CALLS" },
             new MissionDef { Type = MissionType.ReachCombo, Target = 6, Reward = 60, Label = "COMBO X" },
             new MissionDef { Type = MissionType.PassRedGates, Target = 5, Reward = 60, Label = "RED GATES" },
