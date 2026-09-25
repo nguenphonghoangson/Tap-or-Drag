@@ -168,45 +168,45 @@ namespace TapOrDrag
             PlayerPrefs.Save();
         }
 
-        public void Flap() => Play(flap, 0.9f, Random.Range(0.95f, 1.08f));
+        public void Flap() { Play(flap, 0.9f, Random.Range(0.95f, 1.08f)); Haptics.Play(HapticType.Soft, 0.55f); }
         public void Pass(int multiplier) => Play(pass, 0.8f, 1f + 0.06f * Mathf.Min(multiplier - 1, 10));
-        public void ComboUp(int multiplier) => Play(combo, 0.9f, 1f + 0.05f * Mathf.Min(multiplier - 2, 8));
-        public void Dash() => Play(dash, 0.9f, Random.Range(0.96f, 1.04f));
-        public void GateBreak() => Play(gateBreak);
-        public void Stomp() => Play(stomp);
-        public void ShieldPop() => Play(shieldPop);
-        public void FeverStart() => Play(feverStart);
-        public void FeverEnd() => Play(feverEnd, 0.8f);
-        public void Perfect() => Play(perfect);
-        public void CloseCall() => Play(closeCall, 0.9f);
-        public void Smash() => Play(smash, 0.8f, Random.Range(0.9f, 1.15f));
-        public void Coin(int chain) => Play(coin, 0.7f, 1f + 0.05f * Mathf.Min(chain, 10));
-        public void SwitchFlip() => Play(switchFlip);
-        public void Biome() => Play(biome, 0.8f);
-        public void Mission() => Play(mission);
+        public void ComboUp(int multiplier) { Play(combo, 0.9f, 1f + 0.05f * Mathf.Min(multiplier - 2, 8)); Haptics.Play(HapticType.Medium, 0.7f); }
+        public void Dash() { Play(dash, 0.9f, Random.Range(0.96f, 1.04f)); Haptics.Play(HapticType.Medium); }
+        public void GateBreak() { Play(gateBreak); Haptics.Play(HapticType.Rigid); }
+        public void Stomp() { Play(stomp); Haptics.Play(HapticType.Medium); }
+        public void ShieldPop() { Play(shieldPop); Haptics.Play(HapticType.Warning); }
+        public void FeverStart() { Play(feverStart); Haptics.Play(HapticType.Heavy); }
+        public void FeverEnd() { Play(feverEnd, 0.8f); Haptics.Play(HapticType.Soft); }
+        public void Perfect() { Play(perfect); Haptics.Play(HapticType.Success); }
+        public void CloseCall() { Play(closeCall, 0.9f); Haptics.Play(HapticType.Light); }
+        public void Smash() { Play(smash, 0.8f, Random.Range(0.9f, 1.15f)); Haptics.Play(HapticType.Rigid); }
+        public void Coin(int chain) { Play(coin, 0.7f, 1f + 0.05f * Mathf.Min(chain, 10)); Haptics.Play(HapticType.Selection); }
+        public void SwitchFlip() { Play(switchFlip); Haptics.Play(HapticType.Light); }
+        public void Biome() { Play(biome, 0.8f); Haptics.Play(HapticType.Soft); }
+        public void Mission() { Play(mission); Haptics.Play(HapticType.Success); }
         public void Shoot() => Play(shoot, 0.5f, Random.Range(0.95f, 1.05f));
         public void EnemyHit() => Play(enemyHit, 0.5f, Random.Range(0.9f, 1.2f));
-        public void Explode() => Play(explode, 0.8f, Random.Range(0.85f, 1.15f));
-        public void BigExplode() => Play(bigExplode);
-        public void PowerUp() => Play(powerUp);
-        public void BossAlarm() => Play(bossAlarm, 0.8f);
-        public void IceCrack() => Play(iceCrack, 0.7f);
-        public void IceShatter() => Play(iceShatter, 0.8f, Random.Range(0.9f, 1.1f));
+        public void Explode() { Play(explode, 0.8f, Random.Range(0.85f, 1.15f)); Haptics.Play(HapticType.Light, 0.7f); }
+        public void BigExplode() { Play(bigExplode); Haptics.Play(HapticType.Heavy); }
+        public void PowerUp() { Play(powerUp); Haptics.Play(HapticType.Light); }
+        public void BossAlarm() { Play(bossAlarm, 0.8f); Haptics.Play(HapticType.Warning); }
+        public void IceCrack() { Play(iceCrack, 0.7f); Haptics.Play(HapticType.Light); }
+        public void IceShatter() { Play(iceShatter, 0.8f, Random.Range(0.9f, 1.1f)); Haptics.Play(HapticType.Rigid); }
         public void MeteorWarn() => Play(meteorWarn, 0.8f);
-        public void MeteorLaunch() => Play(meteorLaunch, 0.9f);
-        public void SwitchToggle(int state) => Play(switchToggle, 0.9f, state == 0 ? 1f : 0.8f);
-        public void Portal(bool inverted) => Play(inverted ? portalUp : portalDown);
-        public void Purchase() => Play(purchase);
+        public void MeteorLaunch() { Play(meteorLaunch, 0.9f); Haptics.Play(HapticType.Medium); }
+        public void SwitchToggle(int state) { Play(switchToggle, 0.9f, state == 0 ? 1f : 0.8f); Haptics.Play(HapticType.Light); }
+        public void Portal(bool inverted) { Play(inverted ? portalUp : portalDown); Haptics.Play(HapticType.Medium); }
+        public void Purchase() { Play(purchase); Haptics.Play(HapticType.Success); }
         public void SetMusicPitch(float pitch) { if (music != null) music.pitch = pitch; }
-        public void SkillReady() => Play(skillReady, 0.8f);
-        public void Miss() => Play(miss);
-        public void Hit() => Play(hit);
-        public void Zap() => Play(zap, 0.9f);
+        public void SkillReady() { Play(skillReady, 0.8f); Haptics.Play(HapticType.Light); }
+        public void Miss() { Play(miss); Haptics.Play(HapticType.Error); }
+        public void Hit() { Play(hit); Haptics.Play(HapticType.Heavy); }
+        public void Zap() { Play(zap, 0.9f); Haptics.Play(HapticType.Rigid); }
         public void Fall() => Play(fall, 0.8f);
-        public void Thud() => Play(thud);
-        public void GameOver() => Play(gameOver);
-        public void NewBest() => Play(newBest);
-        public void Click() => Play(click, 0.8f);
-        public void RunStart() => Play(start, 0.8f);
+        public void Thud() { Play(thud); Haptics.Play(HapticType.Medium); }
+        public void GameOver() { Play(gameOver); Haptics.Play(HapticType.Warning); }
+        public void NewBest() { Play(newBest); Haptics.Play(HapticType.Success); }
+        public void Click() { Play(click, 0.8f); Haptics.Play(HapticType.Selection); }
+        public void RunStart() { Play(start, 0.8f); Haptics.Play(HapticType.Light); }
     }
 }

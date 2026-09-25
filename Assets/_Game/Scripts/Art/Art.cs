@@ -28,7 +28,7 @@ namespace TapOrDrag
         public Sprite Sun, StarSmall, StarBig;
         public Sprite[] Clouds;
         public Sprite HillsFar, HillsMid, Ground;
-        public Sprite IconPipe, IconGate, IconSoundOn, IconSoundOff, IconCrown, IconArrowLeft, IconArrowRight, Panel;
+        public Sprite IconPipe, IconGate, IconSoundOn, IconSoundOff, IconHapticOn, IconHapticOff, IconCrown, IconArrowLeft, IconArrowRight, Panel;
 
         static readonly Vector2 Center = new Vector2(0.5f, 0.5f);
         static readonly Vector2 BottomCenter = new Vector2(0.5f, 0f);
@@ -808,6 +808,30 @@ namespace TapOrDrag
             "....w.......",
         };
 
+        static readonly string[] HapticOnMap =
+        {
+            "...wwwww...",
+            "w..w...w..w",
+            ".w.w...w.w.",
+            "w..w...w..w",
+            ".w.w...w.w.",
+            "w..w...w..w",
+            "...w.w.w...",
+            "...wwwww...",
+        };
+
+        static readonly string[] HapticOffMap =
+        {
+            "...wwwww...",
+            "...w...w...",
+            "...w...w...",
+            "...w...w...",
+            "...w...w...",
+            "...w...w...",
+            "...w.w.w...",
+            "...wwwww...",
+        };
+
         static readonly string[] SoundOffMap =
         {
             "....w.......",
@@ -887,6 +911,8 @@ namespace TapOrDrag
         {
             IconSoundOn = OutlinedIcon(SoundOnMap, Pal.White);
             IconSoundOff = OutlinedIcon(SoundOffMap, Pal.Hex("b9a8d6"));
+            IconHapticOn = OutlinedIcon(HapticOnMap, Pal.White);
+            IconHapticOff = OutlinedIcon(HapticOffMap, Pal.Hex("b9a8d6"));
             IconCrown = OutlinedIcon(CrownMap, Pal.Gold);
             var arrow = new[] { "...w", "..ww", ".www", "wwww", ".www", "..ww", "...w" };
             IconArrowLeft = OutlinedIcon(arrow, Pal.White);

@@ -17,7 +17,7 @@ namespace TapOrDrag
 
         Art art;
         AudioManager audioManager;
-        RectTransform frame, playGroup, readyGroup, gameOverGroup, titleGroup, goPanel, muteButton;
+        RectTransform frame, playGroup, readyGroup, gameOverGroup, titleGroup, goPanel, muteButton, hapticButton;
         RectTransform skinSelector, skinLeft, skinRight;
         PixelText score, combo, toast, best, swipeHint, tapToStart, tapToRetry, goTitle, goScore, goBest, goNewBest;
         Image tutorialPanel;
@@ -26,7 +26,7 @@ namespace TapOrDrag
         PixelText[] skinLabels;
         Camera cam;
         Vector3 selectorWorld;
-        Image crown, muteIcon, flash, feverOverlay, feverBarBack, feverBarFill;
+        Image crown, muteIcon, hapticIcon, flash, feverOverlay, feverBarBack, feverBarFill;
         PixelText feverText, feverMeterLabel;
         bool feverOn, meterRecharging;
         float feverProgress, meterFill;
@@ -64,6 +64,9 @@ namespace TapOrDrag
             muteButton = NewButton(frame, "Mute", TopLeft, new Vector2(4f, -4f), new Vector2(64f, 52f), OnMuteClicked);
             muteButton.pivot = TopLeft;
             muteIcon = NewImage(muteButton, "Icon", art.IconSoundOn, 3f, Mid, Mid, Vector2.zero);
+            hapticButton = NewButton(frame, "Haptics", TopLeft, new Vector2(68f, -4f), new Vector2(64f, 52f), OnHapticsClicked);
+            hapticButton.pivot = TopLeft;
+            hapticIcon = NewImage(hapticButton, "Icon", art.IconHapticOn, 3f, Mid, Mid, Vector2.zero);
 
             // In-run HUD
             playGroup = NewRect("Play", frame);
@@ -140,11 +143,12 @@ namespace TapOrDrag
             BuildMeta();
             BuildShooterUi();
             RefreshMute();
+            RefreshHaptics();
             FitFrame();
         }
 
         public bool IsOverButton(Vector2 screenPos) =>
-            Hit(muteButton, screenPos) || Hit(skinLeft, screenPos) || Hit(skinRight, screenPos) || MetaButtonHit(screenPos) || ShooterButtonHit(screenPos);
+            Hit(muteButton, screenPos) || Hit(hapticButton, screenPos) || Hit(skinLeft, screenPos) || Hit(skinRight, screenPos) || MetaButtonHit(screenPos) || ShooterButtonHit(screenPos);
 
         static bool Hit(RectTransform rt, Vector2 screenPos) =>
             rt != null && rt.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);
@@ -157,6 +161,16 @@ namespace TapOrDrag
         }
 
         void RefreshMute() => muteIcon.sprite = audioManager.Muted ? art.IconSoundOff : art.IconSoundOn;
+
+        void OnHapticsClicked()
+        {
+            Haptics.Enabled = !Haptics.Enabled;
+            if (Haptics.Enabled) Haptics.Play(HapticType.Medium); // confirm with a buzz
+            audioManager.Click();
+            RefreshHaptics();
+        }
+
+        void RefreshHaptics() => hapticIcon.sprite = Haptics.Enabled ? art.IconHapticOn : art.IconHapticOff;
 
         // ---------------------------------------------------------------- state
 
