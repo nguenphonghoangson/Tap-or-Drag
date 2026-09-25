@@ -110,6 +110,8 @@ namespace TapOrDrag
             tutorialPanel.gameObject.SetActive(!shooterMode && !showMissions);
             missionsPanel.gameObject.SetActive(!shooterMode && showMissions);
             shooterPanel.gameObject.SetActive(shooterMode);
+            upgradesButton.gameObject.SetActive(shooterMode);
+            itemsButton.gameObject.SetActive(shooterMode);
         }
 
         public void SetMissionRow(int slot, string text, int reward, bool done)

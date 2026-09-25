@@ -34,21 +34,17 @@ namespace TapOrDrag
             modePrev = NewButton(readyGroup, "ModePrev", Top, new Vector2(-78f, -171f), new Vector2(150f, 52f), () => ModeStepRequested?.Invoke(-1));
             modeNext = NewButton(readyGroup, "ModeNext", Top, new Vector2(78f, -171f), new Vector2(150f, 52f), () => ModeStepRequested?.Invoke(1));
 
-            shooterPanel = NewImage(readyGroup, "ShooterTutorial", art.Panel, 1f, BottomMid, BottomMid, new Vector2(0f, 180f));
-            shooterPanel.type = Image.Type.Sliced;
+            // Shooter hint: two text lines, no panel behind them.
+            shooterPanel = NewImage(readyGroup, "ShooterTutorial", null, 1f, BottomMid, BottomMid, new Vector2(0f, 180f));
+            shooterPanel.color = Color.clear;
             shooterPanel.rectTransform.sizeDelta = new Vector2(300f, 136f);
-            PixelText.Create(shooterPanel.transform, "Move", "DRAG TO MOVE", Pal.OrangeLight, 3, Top, Top, new Vector2(0f, -18f));
-            shooterPanelLine = PixelText.Create(shooterPanel.transform, "Fire", "AUTO FIRE - STOP THE CATS", Art.PelletColor, 2, Top, Top, new Vector2(0f, -50f));
-            // Two entry points into the hangar: each opens straight on its page.
-            upgradesButton = NewButton(shooterPanel.transform, "Upgrades", BottomMid, new Vector2(-70f, 34f), new Vector2(132f, 46f), () => HangarOpenRequested?.Invoke(0));
-            AddPanel(upgradesButton);
-            NewImage(upgradesButton, "Icon", art.PowerCapsule, 2f, new Vector2(0f, 0.5f), Mid, new Vector2(18f, 0f));
-            PixelText.Create(upgradesButton, "Label", "UPGRADES", Pal.Gold, 2, Mid, Mid, new Vector2(14f, 0f));
-            itemsButton = NewButton(shooterPanel.transform, "Items", BottomMid, new Vector2(70f, 34f), new Vector2(132f, 46f), () => HangarOpenRequested?.Invoke(1));
-            AddPanel(itemsButton);
-            NewImage(itemsButton, "Icon", art.IconBomb, 2f, new Vector2(0f, 0.5f), Mid, new Vector2(18f, 0f));
-            PixelText.Create(itemsButton, "Label", "ITEMS", Pal.Gold, 2, Mid, Mid, new Vector2(10f, 0f));
+            PixelText.Create(shooterPanel.transform, "Move", "DRAG TO MOVE", Pal.OrangeLight, 3, Top, Top, new Vector2(0f, -40f));
+            shooterPanelLine = PixelText.Create(shooterPanel.transform, "Fire", "AUTO FIRE - STOP THE CATS", Art.PelletColor, 2, Top, Top, new Vector2(0f, -74f));
             shooterPanel.gameObject.SetActive(false);
+
+            // Hangar entry points: small icon buttons on the left/right edges, each opens straight on its page.
+            upgradesButton = SmallIconButton("Upgrades", new Vector2(0f, 0.5f), new Vector2(46f, 40f), art.PowerCapsule, "UPGRADE", 0);
+            itemsButton = SmallIconButton("Items", new Vector2(1f, 0.5f), new Vector2(-46f, 40f), art.IconBomb, "ITEMS", 1);
 
             // Hearts: two rows of four so armor upgrades still fit left of the score.
             for (int i = 0; i < MaxHeartIcons; i++)
@@ -105,6 +101,16 @@ namespace TapOrDrag
 
             BuildHangar();
             BuildCoreChoice();
+        }
+
+        RectTransform SmallIconButton(string objectName, Vector2 anchor, Vector2 position, Sprite icon, string label, int tab)
+        {
+            var button = NewButton(readyGroup, objectName, anchor, position, new Vector2(52f, 52f), () => HangarOpenRequested?.Invoke(tab));
+            AddPanel(button);
+            NewImage(button, "Icon", icon, 3f, Mid, Mid, Vector2.zero);
+            PixelText.Create(button, "Label", label, Pal.Gold, 2, Mid, Mid, new Vector2(0f, -40f));
+            button.gameObject.SetActive(false);
+            return button;
         }
 
         bool ShooterButtonHit(Vector2 screenPos) =>
