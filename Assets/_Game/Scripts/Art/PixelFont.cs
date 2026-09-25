@@ -1,0 +1,129 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace TapOrDrag
+{
+    /// <summary>5x7 bitmap font rendered to sprites with an ink outline and drop shadow. Sprites are cached per string+color.</summary>
+    public static class PixelFont
+    {
+        const int GlyphHeight = 7;
+
+        static readonly Dictionary<char, string[]> Maps = new Dictionary<char, string[]>
+        {
+            { 'A', new[] { ".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#" } },
+            { 'B', new[] { "####.", "#...#", "#...#", "####.", "#...#", "#...#", "####." } },
+            { 'C', new[] { ".###.", "#...#", "#....", "#....", "#....", "#...#", ".###." } },
+            { 'D', new[] { "####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####." } },
+            { 'E', new[] { "#####", "#....", "#....", "####.", "#....", "#....", "#####" } },
+            { 'F', new[] { "#####", "#....", "#....", "####.", "#....", "#....", "#...." } },
+            { 'G', new[] { ".###.", "#...#", "#....", "#.###", "#...#", "#...#", ".####" } },
+            { 'H', new[] { "#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#" } },
+            { 'I', new[] { ".###.", "..#..", "..#..", "..#..", "..#..", "..#..", ".###." } },
+            { 'J', new[] { "..###", "...#.", "...#.", "...#.", "#..#.", "#..#.", ".##.." } },
+            { 'K', new[] { "#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#" } },
+            { 'L', new[] { "#....", "#....", "#....", "#....", "#....", "#....", "#####" } },
+            { 'M', new[] { "#...#", "##.##", "#.#.#", "#.#.#", "#...#", "#...#", "#...#" } },
+            { 'N', new[] { "#...#", "#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#" } },
+            { 'O', new[] { ".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###." } },
+            { 'P', new[] { "####.", "#...#", "#...#", "####.", "#....", "#....", "#...." } },
+            { 'Q', new[] { ".###.", "#...#", "#...#", "#...#", "#.#.#", "#..#.", ".##.#" } },
+            { 'R', new[] { "####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#" } },
+            { 'S', new[] { ".####", "#....", "#....", ".###.", "....#", "....#", "####." } },
+            { 'T', new[] { "#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.." } },
+            { 'U', new[] { "#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###." } },
+            { 'V', new[] { "#...#", "#...#", "#...#", "#...#", "#...#", ".#.#.", "..#.." } },
+            { 'W', new[] { "#...#", "#...#", "#...#", "#.#.#", "#.#.#", "#.#.#", ".#.#." } },
+            { 'X', new[] { "#...#", "#...#", ".#.#.", "..#..", ".#.#.", "#...#", "#...#" } },
+            { 'Y', new[] { "#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.." } },
+            { 'Z', new[] { "#####", "....#", "...#.", "..#..", ".#...", "#....", "#####" } },
+            { '0', new[] { ".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###." } },
+            { '1', new[] { "..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###." } },
+            { '2', new[] { ".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####" } },
+            { '3', new[] { "####.", "....#", "....#", ".###.", "....#", "....#", "####." } },
+            { '4', new[] { "...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#." } },
+            { '5', new[] { "#####", "#....", "####.", "....#", "....#", "#...#", ".###." } },
+            { '6', new[] { ".###.", "#....", "#....", "####.", "#...#", "#...#", ".###." } },
+            { '7', new[] { "#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..." } },
+            { '8', new[] { ".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###." } },
+            { '9', new[] { ".###.", "#...#", "#...#", ".####", "....#", "....#", ".###." } },
+            { 'x', new[] { ".....", ".....", "#...#", ".#.#.", "..#..", ".#.#.", "#...#" } },
+            { '!', new[] { "..#..", "..#..", "..#..", "..#..", "..#..", ".....", "..#.." } },
+            { '.', new[] { ".....", ".....", ".....", ".....", ".....", ".....", "..#.." } },
+            { ':', new[] { ".....", "..#..", ".....", ".....", ".....", "..#..", "....." } },
+            { '+', new[] { ".....", "..#..", "..#..", "#####", "..#..", "..#..", "....." } },
+            { '-', new[] { ".....", ".....", ".....", "#####", ".....", ".....", "....." } },
+            { '=', new[] { ".....", ".....", "#####", ".....", "#####", ".....", "....." } },
+            { '>', new[] { ".#...", "..#..", "...#.", "....#", "...#.", "..#..", ".#..." } },
+            { '?', new[] { ".###.", "#...#", "....#", "...#.", "..#..", ".....", "..#.." } },
+        };
+
+        struct Glyph
+        {
+            public bool[,] Pixels; // [x, y]
+            public int Width;
+        }
+
+        static Dictionary<char, Glyph> glyphs;
+        static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
+
+        static void Parse()
+        {
+            glyphs = new Dictionary<char, Glyph>();
+            foreach (var kv in Maps)
+            {
+                int minX = 5, maxX = -1;
+                for (int y = 0; y < GlyphHeight; y++)
+                for (int x = 0; x < 5; x++)
+                    if (kv.Value[y][x] == '#')
+                    {
+                        minX = Mathf.Min(minX, x);
+                        maxX = Mathf.Max(maxX, x);
+                    }
+                int w = maxX - minX + 1;
+                var px = new bool[w, GlyphHeight];
+                for (int y = 0; y < GlyphHeight; y++)
+                for (int x = 0; x < w; x++)
+                    px[x, y] = kv.Value[y][x + minX] == '#';
+                glyphs[kv.Key] = new Glyph { Pixels = px, Width = w };
+            }
+            glyphs[' '] = new Glyph { Pixels = new bool[3, GlyphHeight], Width = 3 };
+        }
+
+        static Glyph Lookup(char c)
+        {
+            if (glyphs.TryGetValue(c, out var g)) return g;
+            if (glyphs.TryGetValue(char.ToUpperInvariant(c), out g)) return g;
+            return glyphs['?'];
+        }
+
+        public static Sprite Get(string text, Color32 color)
+        {
+            if (glyphs == null) Parse();
+            if (string.IsNullOrEmpty(text)) text = " ";
+            string key = text + "|" + color.r + "," + color.g + "," + color.b + "," + color.a;
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            int width = 0;
+            for (int i = 0; i < text.Length; i++) width += Lookup(text[i]).Width + (i > 0 ? 1 : 0);
+
+            var pc = new PixelCanvas(width + 2, GlyphHeight + 3);
+            Color32 top = Pal.Shade(color, 1.22f), bottom = Pal.Shade(color, 0.84f);
+            int cursor = 1;
+            foreach (char ch in text)
+            {
+                var g = Lookup(ch);
+                for (int y = 0; y < GlyphHeight; y++)
+                for (int x = 0; x < g.Width; x++)
+                    if (g.Pixels[x, y])
+                        pc.Set(cursor + x, 1 + y, y <= 1 ? top : y >= 5 ? bottom : color);
+                cursor += g.Width + 1;
+            }
+            pc.Outline(Pal.Ink, true);
+            pc.DropShadow(Pal.Shadow, 0, 1);
+
+            var sprite = pc.ToSprite(new Vector2(0.5f, 0.5f));
+            Cache[key] = sprite;
+            return sprite;
+        }
+    }
+}

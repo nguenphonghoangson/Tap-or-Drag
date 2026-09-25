@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53062f46075874e7290167f04d143ac5, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: 
+  gravity: 40
+  flapVelocity: 12
+  maxFallSpeed: 17
+  hitRadius: 0.4
+  startSpeed: 3.6
+  maxSpeed: 5.8
+  speedPerClear: 0.05
+  firstObstacleDistance: 7
+  pipeSpacing: 5.4
+  startGap: 4.6
+  minGap: 3.4
+  gapShrinkPerSpawn: 0.035
+  maxGapDelta: 3.2
+  movingPipesAfter: 15
+  movingPipeChance: 0.3
+  movingPipeAmplitude: 0.9
+  firstGateAt: 3
+  gateChance: 0.3
+  maxGatesInRow: 2
+  gateSpacingBefore: 3.6
+  gateSpacingAfter: 6.5
+  dashWindow: 4.8
+  dashBoostSpeed: 15
+  dashMinDuration: 0.2
+  dashMaxDuration: 0.8
+  dashBoostDecay: 80
+  dashCooldown: 0.12
+  wrongSwipeIsFatal: 0
+  pipePoints: 1
+  gatePoints: 2
+  comboStep: 2
+  maxMultiplier: 9
+  swipeThreshold: 0.06
+  swipeHintUntilGates: 5
