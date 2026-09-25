@@ -41,22 +41,38 @@ namespace TapOrDrag
 
         // ---------------------------------------------------------------- Bones (the collectible currency)
 
-        static readonly string[] BoneMap =
-        {
-            ".KK.......KK.",
-            "KWWK.....KWWK",
-            "KWWWKKKKKWWSK",
-            ".KWWWWWWWWWK.",
-            "KWWSKKKKKSWSK",
-            "KWSK.....KSSK",
-            ".KK.......KK.",
-        };
-
-        /// <summary>Golden bone pickup (kept in the Coin fields so the economy code is unchanged). Coin.cs wobbles it.</summary>
+        /// <summary>
+        /// Golden bone pickup (kept in the Coin fields so the economy code is unchanged): a shaft with two round,
+        /// sphere-shaded knobs at each end. Gold so it never reads as a bone pillar. Coin.cs wobbles it.
+        /// </summary>
         void BuildCoins()
         {
-            var pal = new Dictionary<char, Color32> { { 'K', Pal.Ink }, { 'W', Pal.Gold }, { 'S', Pal.Hex("d99a1e") } }; // golden, so it never reads as a bone pillar
-            Coin = new[] { PixelCanvas.FromMap(BoneMap, pal).ToSprite(Center) };
+            const int w = 18, h = 10;
+            Color32 hi = Pal.Hex("fff6c0"), light = Pal.Hex("ffe066"), baseCol = Pal.Gold, shade = Pal.Hex("e0a624"), deep = Pal.Hex("b97d14");
+            var knobs = new[] { new Vector2(3.2f, 3f), new Vector2(3.2f, 7f), new Vector2(14.8f, 3f), new Vector2(14.8f, 7f) };
+            const float r = 2.6f;
+            var pc = new PixelCanvas(w, h);
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                var p = new Vector2(x + 0.5f, y + 0.5f);
+                int knob = -1;
+                for (int i = 0; i < knobs.Length; i++)
+                    if (Vector2.Distance(p, knobs[i]) <= r) knob = i;
+                bool shaft = p.x > 3.5f && p.x < 14.5f && p.y > 3.4f && p.y < 6.6f;
+                if (knob < 0 && !shaft) continue;
+                Color32 c;
+                if (knob >= 0)
+                {
+                    float dx = (p.x - knobs[knob].x) / r, dy = (p.y - knobs[knob].y) / r;
+                    float l = -dx * 0.7f - dy * 0.7f;
+                    c = l > 0.55f ? hi : l > 0.15f ? light : l < -0.55f ? deep : l < -0.15f ? shade : baseCol;
+                }
+                else c = p.y < 4.4f ? light : p.y > 5.6f ? shade : baseCol;
+                pc.Set(x, y, c);
+            }
+            pc.Outline(Pal.Ink, false);
+            Coin = new[] { pc.ToSprite(Center) };
             IconCoin = Coin[0];
         }
 

@@ -5,9 +5,10 @@ namespace TapOrDrag
     /// <summary>Top + bottom orange pipe with a gap. Tap (flap) to fly through the gap.</summary>
     public class PipePair : Obstacle
     {
-        const float BodyWidth = 24f / World.PPU;
-        const float CapWidth = 28f / World.PPU;
-        const float CapHeight = 11f / World.PPU;
+        // Dog version: the pillar is a femur (narrow shaft, wide knob end), sized from the bone art.
+        const float BodyWidth = Art.BoneShaftWidth / World.PPU;
+        const float CapWidth = Art.BoneEndWidth / World.PPU;
+        const float CapHeight = Art.BoneKnobHeight / World.PPU;
 
         SpriteRenderer topBody, topCap, bottomBody, bottomCap;
         float center, gap, amplitude, phase;
@@ -25,9 +26,8 @@ namespace TapOrDrag
             topBody = Part("TopBody", art.PipeBody, -10);
             bottomBody = Part("BottomBody", art.PipeBody, -10);
             topBody.drawMode = bottomBody.drawMode = SpriteDrawMode.Tiled;
-            topCap = Part("TopCap", art.PipeCap, -9);
+            topCap = Part("TopCap", art.PipeCapTop, -9); // own sprite so the light still comes from above
             bottomCap = Part("BottomCap", art.PipeCap, -9);
-            topCap.flipY = true;
         }
 
         public void Setup(float x, float gapCenter, float gapSize, float moveAmplitude)

@@ -48,62 +48,70 @@ namespace TapOrDrag
             return art;
         }
 
-        // ---------------------------------------------------------------- Dog (the player character)
-        // Chibi puppy facing right: muzzle with nose and hanging tongue, collar rows (see PaintScarfBand), tiny paws.
-        // It flies by flapping its floppy ear, which replaces the bird's wing frames (up / mid / down).
-        // Palette keys: Y fur, L light fur, D shade, W/E eye, N nose, T tongue, P blush, w/g ear.
+        // ---------------------------------------------------------------- Dog pilot in a flying saucer (the player character)
+        // 24x23 canvas: the puppy sits in an open cockpit (head, floppy ear, collar), a windshield in front, the saucer
+        // hull in the skin's colour, and an engine flame underneath. The three "wing" frames are flame sizes
+        // (big right after a flap, then flickering), so all the old wing-cycle animation code drives the engine.
+        // Palette keys: Y fur, L light fur, D shade, W/E eye, N nose, T tongue, P blush, G glass.
 
-        static readonly string[] BirdBody =
+        public const int CharWidth = 24, CharHeight = 23;
+        const float CharCenterX = CharWidth * 0.5f, CharCenterY = CharHeight * 0.5f;
+        // Hats were authored on the old bird head; this moves them onto the puppy's head.
+        const int HatShiftX = 2, HatShiftY = -1;
+
+        static readonly string[] DogHead =
         {
-            "....KKKKKKK.......",
-            "...KYYYYYYYKK.....",
-            "..KYLYYYYYYYYK....",
-            "..KYYYYYYYYWWEK...",
-            ".KYYYYYYYYYWEEK...",
-            ".KYYYYYYYYYYYLKKK.",
-            "KYYYYYYYYYYYLLLLNK",
-            "KYDYYYYYYYYLLLLLLK",
-            ".KDYYYYYYYYPKKKKKK",
-            "..KDYYYYYYYYYKTTK.",
-            "..KDDYYYYYYYYKTK..",
-            "...KDDYYYYYYDKK...",
-            "....KKDDDDDDKK....",
-            "......KKKKKK......",
-            ".....KLK..KLK.....",
+            "...KKKKKK......",
+            "..KYYYYYYKK....",
+            ".KYLYYYYYYYK...",
+            ".KYYYYYYYWWEK..",
+            "KYYYYYYYYWEEK..",
+            "KYYYYYYYYYYYLKK",
+            "KYYYYYYYYYYLLNK",
+            "KDYYYYYYYPKKKKK",
+            ".KDYYYYYYYKTTK.",
+            "..KDDYYYYYYKK..",
+        };
+        static readonly string[] DogEar = { ".KK..", "KDDK.", "KDDDK", "KDDDK", "KDDK.", ".KDK.", "..K.." };
+        static readonly string[] DogTorso = { "KYYYYYYYYYK", "KYYYYYYYYYK", "KYYYYYYYYYK" };
+        static readonly string[] Windshield = { "...K", "..KG", ".KGG", "KGGG" };
+        static readonly string[][] EngineFlames =
+        {
+            new[] { "oyWWyo", ".yWWy.", "..yy.." }, // just flapped
+            new[] { ".yWWy.", "..yy.." },
+            new[] { "..yy.." },
         };
 
-        static readonly string[] WingUp =
+        /// <summary>Saucer hull: metal rim, skin-coloured top, dark underside, running lights and a belly glow.</summary>
+        static void DrawHull(PixelCanvas pc, Color32 main, Color32 shade)
         {
-            "KK...",
-            "KwK..",
-            "KwwK.",
-            "KwgwK",
-            "KwggK",
-            ".KwgK",
-            "..KK.",
-        };
+            const float cx = 11.5f, cy = 16f, rx = 11.5f, ry = 3.6f;
+            Color32 metal = Pal.Hex("f4f8ff"), lights = Pal.Hex("8ff6ff");
+            bool Inside(int x, int y)
+            {
+                float dx = (x + 0.5f - cx) / rx, dy = (y + 0.5f - cy) / ry;
+                return dx * dx + dy * dy <= 1f;
+            }
+            for (int y = 0; y < pc.Height; y++)
+            for (int x = 0; x < pc.Width; x++)
+            {
+                if (Inside(x, y))
+                {
+                    float dx = (x + 0.5f - cx) / rx, dy = (y + 0.5f - cy) / ry;
+                    Color32 c = dy < -0.78f ? metal : dy < 0.02f ? main : shade;
+                    if (y == 15) c = Pal.Ink;                                         // seam
+                    if (y == 16 && x % 3 == 1 && Mathf.Abs(dx) < 0.85f) c = lights;  // running lights
+                    if (dy > 0.6f && Mathf.Abs(dx) < 0.25f) c = lights;              // belly glow
+                    pc.Set(x, y, c);
+                }
+                else if (Inside(x - 1, y) || Inside(x + 1, y) || Inside(x, y - 1) || Inside(x, y + 1))
+                {
+                    if (!pc.Opaque(x, y) || y >= 13) pc.Set(x, y, Pal.Ink); // outline, without cutting through the collar
+                }
+            }
+        }
 
-        static readonly string[] WingMid =
-        {
-            "..KKKKK",
-            ".KwwwwK",
-            "KwggwwK",
-            "KwgwwK.",
-            ".KKKK..",
-        };
-
-        static readonly string[] WingDown =
-        {
-            ".KKK.",
-            "KwwwK",
-            "KwgwK",
-            "KwgwK",
-            "KwgwK",
-            ".KwgK",
-            "..KK.",
-        };
-
-        /// <summary>Per-skin sprite set built from the shared bird map.</summary>
+        /// <summary>Per-skin sprite set built from the shared dog-pilot art.</summary>
         public sealed class SkinArt
         {
             public SkinDef Def;
@@ -127,11 +135,11 @@ namespace TapOrDrag
                 { 'K', Pal.Ink }, { 'W', Pal.White }, { 'E', Pal.Ink },
                 { 'Y', Pal.Hex(def.Body) }, { 'L', Pal.Hex(def.BodyLight) }, { 'D', Pal.Hex(def.BodyShade) },
                 { 'T', Pal.Hex(def.Beak) }, { 'N', Pal.Hex(def.BeakShade) }, { 'P', Pal.Hex(def.Cheek) },
-                { 'w', Pal.Hex(def.Wing) }, { 'g', Pal.Hex(def.WingShade) },
+                { 'G', new Color32(191, 244, 255, 150) },
             };
-            string[][] wings = { WingUp, WingMid, WingDown };
-            Vector2Int[] wingPos = { new Vector2Int(4, 0), new Vector2Int(1, 4), new Vector2Int(5, 3) }; // ear: raised, swept back, hanging
-            string[] closed = CloseEyes(BirdBody);
+            var flamePal = new Dictionary<char, Color32> { { 'W', Pal.Hex("fff8d0") }, { 'y', Pal.Gold }, { 'o', Pal.Orange } };
+            Color32 hull = Pal.Hex(def.Wing), hullShade = Pal.Hex(def.WingShade);
+            string[] closedHead = CloseEyes(DogHead);
             bool hasScarf = def.Scarf != null;
             Color32 scarfMain = default, scarfDark = default, scarfLight = default;
             if (hasScarf)
@@ -143,15 +151,19 @@ namespace TapOrDrag
 
             var skin = new SkinArt { Def = def, Frames = new Sprite[3, 2] };
             if (buildSilhouette) BirdSilhouette = new Sprite[3];
-            for (int w = 0; w < 3; w++)
+            for (int f = 0; f < 3; f++)
             for (int e = 0; e < 2; e++)
             {
-                var pc = new PixelCanvas(20, 17);
-                pc.Stamp(e == 0 ? BirdBody : closed, pal, 2, 2);
-                if (hasScarf) PaintScarfBand(pc, scarfMain, scarfDark, scarfLight);
-                pc.Stamp(wings[w], pal, wingPos[w].x, wingPos[w].y);
-                skin.Frames[w, e] = pc.ToSprite(Center);
-                if (buildSilhouette && e == 0) BirdSilhouette[w] = pc.Silhouette(Pal.White).ToSprite(Center);
+                var pc = new PixelCanvas(CharWidth, CharHeight);
+                pc.Stamp(DogTorso, pal, 8, 10);
+                if (hasScarf) PaintScarfBand(pc, scarfMain, scarfDark, scarfLight); // collar on the torso, before the hull covers it
+                DrawHull(pc, hull, hullShade);
+                pc.Stamp(e == 0 ? DogHead : closedHead, pal, 7, 1);
+                pc.Stamp(DogEar, pal, 8, 2);
+                pc.Stamp(Windshield, pal, 18, 9);
+                pc.Stamp(EngineFlames[f], flamePal, 9, 20);
+                skin.Frames[f, e] = pc.ToSprite(Center);
+                if (buildSilhouette && e == 0) BirdSilhouette[f] = pc.Silhouette(Pal.White).ToSprite(Center);
             }
 
             if (hasScarf) skin.ScarfTail = BuildScarfTail(scarfMain, scarfDark, scarfLight);
@@ -261,7 +273,7 @@ namespace TapOrDrag
             if (shape.Outline) pc.Outline(Pal.Ink, true);
             skin.Hat = pc.ToSprite(BottomCenter);
             // Bottom-center of the hat sprite, relative to the bird sprite's center (10, 8.5).
-            skin.HatOffset = new Vector3(shape.X + pc.Width * 0.5f - 10f, 8.5f - (shape.Y + pc.Height), 0f) / World.PPU;
+            skin.HatOffset = new Vector3(shape.X + HatShiftX + pc.Width * 0.5f - CharCenterX, CharCenterY - (shape.Y + HatShiftY + pc.Height), 0f) / World.PPU;
             skin.HatRigid = shape.Rigid;
         }
 
@@ -270,10 +282,10 @@ namespace TapOrDrag
         /// <summary>Collar: two rows between head and body, recolouring fur only (outline stays); stops before the tongue.</summary>
         static void PaintScarfBand(PixelCanvas pc, Color32 main, Color32 dark, Color32 light)
         {
-            for (int x = 0; x < 15; x++)
+            for (int x = 8; x <= 18; x++)
             {
-                RecolorBody(pc, x, 12, x % 4 == 0 ? light : main);
-                RecolorBody(pc, x, 13, dark);
+                RecolorBody(pc, x, 11, x % 4 == 0 ? light : main);
+                RecolorBody(pc, x, 12, dark);
             }
         }
 
@@ -321,85 +333,114 @@ namespace TapOrDrag
             return frames;
         }
 
+        /// <summary>Closed eyes: the lowest eye pixel in each column becomes a lid line, the rest becomes fur.</summary>
         static string[] CloseEyes(string[] src)
         {
-            var result = (string[])src.Clone();
-            for (int y = 2; y <= 5; y++)
+            bool IsEye(char ch) => ch == 'W' || ch == 'E';
+            var rows = new char[src.Length][];
+            for (int y = 0; y < src.Length; y++) rows[y] = src[y].ToCharArray();
+            for (int y = 0; y < src.Length; y++)
+            for (int x = 0; x < rows[y].Length; x++)
             {
-                var row = result[y].ToCharArray();
-                for (int x = 0; x < row.Length; x++)
-                    if (row[x] == 'W' || row[x] == 'E') row[x] = y == 4 ? 'K' : 'Y';
-                result[y] = new string(row);
+                if (!IsEye(src[y][x])) continue;
+                bool eyeBelow = y + 1 < src.Length && x < src[y + 1].Length && IsEye(src[y + 1][x]);
+                rows[y][x] = eyeBelow ? 'Y' : 'K';
             }
+            var result = new string[src.Length];
+            for (int y = 0; y < src.Length; y++) result[y] = new string(rows[y]);
             return result;
         }
 
         // ---------------------------------------------------------------- Pillars (giant bones in the dog version)
 
-        public static readonly Color32 BoneHighlight = Pal.Hex("ffffff");
-        public static readonly Color32 BoneLight = Pal.Hex("fffaf0");
-        public static readonly Color32 BoneBase = Pal.Hex("f3ead2");
-        public static readonly Color32 BoneShade = Pal.Hex("d8c9a3");
-        public static readonly Color32 BoneDeep = Pal.Hex("b8a47e");
+        public static readonly Color32 BoneHighlight = Pal.Hex("fffdf6");
+        public static readonly Color32 BoneLight = Pal.Hex("fbf4e3");
+        public static readonly Color32 BoneBase = Pal.Hex("f0e5c9");
+        public static readonly Color32 BoneShade = Pal.Hex("d9c8a0");
+        public static readonly Color32 BoneDeep = Pal.Hex("b9a276");
+        public static readonly Color32 BoneWarm = Pal.Hex("9c8560");
 
-        /// <summary>Cylinder shading across the 24px shaft, lit from the left.</summary>
-        static Color32[] BoneColumns()
-        {
-            var cols = new Color32[24];
-            for (int x = 0; x < 24; x++)
-                cols[x] = x == 0 || x == 23 ? Pal.Ink
-                    : x == 1 ? BoneDeep : x == 2 ? BoneShade : x == 4 || x == 6 ? BoneLight : x == 5 ? BoneHighlight
-                    : x <= 14 ? BoneBase : x <= 18 ? BoneShade : BoneDeep;
-            return cols;
-        }
+        public const int BoneShaftWidth = 18, BoneEndWidth = 32, BoneEndHeight = 22, BoneKnobHeight = 14;
+        public Sprite PipeCapTop; // knob end for the top pillar (gap edge at the bottom, still lit from above)
+
+        /// <summary>Cylinder shading across a width (u = 0..1), lit from the left.</summary>
+        static Color32 BoneCylinder(float u) =>
+            u < 0.08f ? BoneDeep : u < 0.16f ? BoneShade : u < 0.26f ? BoneLight : u < 0.36f ? BoneHighlight : u < 0.46f ? BoneLight
+            : u < 0.66f ? BoneBase : u < 0.8f ? BoneShade : u < 0.92f ? BoneDeep : BoneWarm;
 
         /// <summary>
-        /// Pipe sprites drawn as a giant bone: a speckled shaft tile (tiled along the pillar) and a knob end with two
-        /// round lobes at the gap edge. Sizes match the old pipe (24px shaft, 28px end) so collisions are unchanged.
+        /// Pillars drawn as a femur: a narrow shaft with long grain and pores (tiled along the pillar), and at the gap
+        /// a flared neck ending in two round condyles with a crease between them. Collision sizes in PipePair match.
         /// </summary>
         void BuildPipe()
         {
-            var cols = BoneColumns();
-
-            var body = new PixelCanvas(24, 16);
+            const int sw = BoneShaftWidth;
+            var body = new PixelCanvas(sw, 16);
             for (int y = 0; y < 16; y++)
-            for (int x = 0; x < 24; x++)
+            for (int x = 0; x < sw; x++)
             {
-                var c = cols[x];
-                if (x > 2 && x < 21 && Hash(x, y, 11) % 29 == 0) c = BoneShade; // porous speckles
+                Color32 c = x == 0 || x == sw - 1 ? Pal.Ink : BoneCylinder((x - 0.5f) / (sw - 2));
+                if (x > 2 && x < sw - 3)
+                {
+                    if (Hash(x, y, 5) % 23 == 0) c = BoneShade;                  // pores
+                    if ((x == 9 || x == 12) && (y + x) % 7 < 3) c = BoneShade;    // grain
+                }
                 body.Set(x, y, c);
             }
             PipeBody = body.ToSprite(Center);
+            PipeCap = BuildBoneEnd(true).ToSprite(TopCenter);
+            PipeCapTop = BuildBoneEnd(false).ToSprite(BottomCenter);
+        }
 
-            // Knob end, 28x13. Top row = gap edge; the neck at the bottom is flush with the shaft's ink columns.
-            const int w = 28, h = 13;
+        /// <param name="gapEdgeTop">true: knobs on the top row (bottom pillar); false: knobs on the bottom row (top pillar).</param>
+        static PixelCanvas BuildBoneEnd(bool gapEdgeTop)
+        {
+            const int w = BoneEndWidth, h = BoneEndHeight;
+            const float radius = 7.8f;
+            var lobes = new[] { new Vector2(8.5f, 8f), new Vector2(23.5f, 8f) };
+            float NeckHalf(float y) => y < 10f ? 12f : 12f - (y - 10f) * (3f / 11f); // 24px flaring down to the 18px shaft
+
             var fill = new bool[w, h];
-            for (int y = 0; y < h; y++)
+            for (int row = 0; row < h; row++)
             for (int x = 0; x < w; x++)
             {
-                var p = new Vector2(x + 0.5f, y + 0.5f);
-                bool lobe = Vector2.Distance(p, new Vector2(7.5f, 6.5f)) <= 6.6f || Vector2.Distance(p, new Vector2(20.5f, 6.5f)) <= 6.6f;
-                bool neck = y >= 6 && x >= 3 && x <= 24;
-                fill[x, y] = lobe || neck;
+                float y = (gapEdgeTop ? row : h - 1 - row) + 0.5f, px = x + 0.5f; // geometry with the gap edge on top
+                bool inLobe = Vector2.Distance(new Vector2(px, y), lobes[0]) <= radius || Vector2.Distance(new Vector2(px, y), lobes[1]) <= radius;
+                bool inNeck = y >= 8.5f && Mathf.Abs(px - 16f) <= NeckHalf(y);
+                fill[x, row] = inLobe || inNeck;
             }
-            var cap = new PixelCanvas(w, h);
-            for (int y = 0; y < h; y++)
+
+            var pc = new PixelCanvas(w, h);
+            for (int row = 0; row < h; row++)
             for (int x = 0; x < w; x++)
             {
-                if (!fill[x, y]) continue;
-                float lobeX = x < 14 ? 7.5f : 20.5f;
-                float dx = (x + 0.5f - lobeX) / 6.6f, dy = (y + 0.5f - 6.5f) / 6.6f;
-                Color32 c;
-                if (dx * dx + dy * dy <= 1f)
+                int geomRow = gapEdgeTop ? row : h - 1 - row;
+                if (!fill[x, row])
                 {
-                    float light = -dx * 0.75f - dy * 0.65f;
-                    c = light > 0.62f ? BoneHighlight : light > 0.25f ? BoneLight : light < -0.72f ? BoneDeep : light < -0.3f ? BoneShade : BoneBase;
+                    bool edge = (x > 0 && fill[x - 1, row]) || (x < w - 1 && fill[x + 1, row]) || (row > 0 && fill[x, row - 1]) || (row < h - 1 && fill[x, row + 1]);
+                    if (edge && geomRow != h - 1) pc.Set(x, row, Pal.Ink); // no outline where the end joins the shaft
+                    continue;
                 }
-                else c = cols[Mathf.Clamp(x - 2, 1, 22)];
-                cap.Set(x, y, c);
+                float px = x + 0.5f, y = geomRow + 0.5f;
+                var lobe = px < 16f ? lobes[0] : lobes[1];
+                float dx = (px - lobe.x) / radius, dy = (y - lobe.y) / radius;
+                float screenDy = gapEdgeTop ? dy : -dy; // light always comes from the top of the screen
+                Color32 c;
+                if (dx * dx + dy * dy <= 1f && geomRow < BoneKnobHeight)
+                {
+                    float light = -dx * 0.7f - screenDy * 0.7f;
+                    c = light > 0.6f ? BoneHighlight : light > 0.25f ? BoneLight : light < -0.75f ? BoneWarm
+                        : light < -0.45f ? BoneDeep : light < -0.1f ? BoneShade : BoneBase;
+                }
+                else
+                {
+                    float half = NeckHalf(y);
+                    c = BoneCylinder((px - (16f - half)) / (2f * half));
+                }
+                if (Mathf.Abs(px - 16f) < 0.6f && geomRow >= 2 && geomRow <= 9) c = geomRow <= 3 ? Pal.Ink : BoneDeep; // crease between condyles
+                pc.Set(x, row, c);
             }
-            cap.Outline(Pal.Ink, false);
-            PipeCap = cap.ToSprite(TopCenter);
+            return pc;
         }
 
         // ---------------------------------------------------------------- Dash gates

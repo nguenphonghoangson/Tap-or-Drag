@@ -9,7 +9,7 @@ namespace TapOrDrag
         public float gravity = 40f;
         public float flapVelocity = 12f;
         public float maxFallSpeed = 17f;
-        public float hitRadius = 0.4f;
+        public float hitRadius = 0.45f; // dog-pilot saucer is larger than the old bird
 
         [Header("Scroll speed (units/s)")]
         public float startSpeed = 3.6f;

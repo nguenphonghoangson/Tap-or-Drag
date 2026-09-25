@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace TapOrDrag
 {
-    /// <summary>Player (a flying puppy that flaps its ears): flappy physics, dash freeze, and sprite animation (wing cycle, blink, tilt, squash).</summary>
+    /// <summary>Player (a puppy piloting a flying saucer; wing frames = engine flame sizes): flappy physics, dash freeze, and sprite animation (wing cycle, blink, tilt, squash).</summary>
     public class Bird : MonoBehaviour
     {
         static readonly int[] WingCycle = { 0, 1, 2, 1 };
@@ -55,7 +55,7 @@ namespace TapOrDrag
             // Scarf ends sit behind the body, knotted at the back of the neck.
             var tail = new GameObject("ScarfTail");
             tail.transform.SetParent(transform, false);
-            tail.transform.localPosition = new Vector3(-0.32f, -0.28f, 0f);
+            tail.transform.localPosition = new Vector3(-0.3f, -0.02f, 0f); // back of the pilot's collar
             scarf = tail.AddComponent<SpriteRenderer>();
             scarf.sortingOrder = 9;
 
@@ -237,7 +237,7 @@ namespace TapOrDrag
         void Animate(float dt, float wingRate)
         {
             wingBoost = Mathf.MoveTowards(wingBoost, 0f, dt * 2.5f);
-            if (Dashing) WingFrame = 1; // ears streaming back
+            if (Dashing) WingFrame = 0; // full thrust
             else if (Dead) WingFrame = 2;
             else
             {

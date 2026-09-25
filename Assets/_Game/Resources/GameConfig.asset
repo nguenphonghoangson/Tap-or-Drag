@@ -15,7 +15,7 @@ MonoBehaviour:
   gravity: 40
   flapVelocity: 12
   maxFallSpeed: 17
-  hitRadius: 0.4
+  hitRadius: 0.45
   startSpeed: 3.6
   maxSpeed: 5.8
   speedPerClear: 0.05
