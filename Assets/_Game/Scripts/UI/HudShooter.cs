@@ -191,7 +191,8 @@ namespace TapOrDrag
         {
             weaponText.Set(weaponName + (level >= 4 ? " MAX" : " LV" + level));
             weaponText.SetColor(weaponName == "HOMING" ? Art.HomingColor : weaponName == "PLASMA" ? Art.PlasmaColor
-                : weaponName == "WAVE" ? Art.WaveColor : Pal.OrangeLight);
+                : weaponName == "WAVE" ? Art.WaveColor : weaponName == "LIGHTNING" ? Art.LightningColor
+                : weaponName == "BOOMERANG" ? Art.BoomerangColor : Pal.OrangeLight);
         }
 
         /// <summary>Bit mask of ShooterGame.Buff* values; icons stack down the right edge under the weapon and wave lines.</summary>

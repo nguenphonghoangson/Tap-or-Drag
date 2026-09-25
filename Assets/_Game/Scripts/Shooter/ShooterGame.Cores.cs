@@ -140,6 +140,8 @@ namespace TapOrDrag
                 case CoreKind.Homing: return weapon != Weapon.Homing;
                 case CoreKind.Plasma: return weapon != Weapon.Plasma;
                 case CoreKind.Wave: return weapon != Weapon.Wave;
+                case CoreKind.Lightning: return weapon != Weapon.Lightning;
+                case CoreKind.Boomerang: return weapon != Weapon.Boomerang;
                 case CoreKind.Heart: return maxHearts < HeartCap;
                 default: return true;
             }
@@ -173,6 +175,8 @@ namespace TapOrDrag
                 case CoreKind.Homing: weapon = Weapon.Homing; break;
                 case CoreKind.Plasma: weapon = Weapon.Plasma; break;
                 case CoreKind.Wave: weapon = Weapon.Wave; break;
+                case CoreKind.Lightning: weapon = Weapon.Lightning; break;
+                case CoreKind.Boomerang: weapon = Weapon.Boomerang; break;
                 case CoreKind.Damage: damageMultiplier = baseDamage + 0.25f * stacks; break;
                 case CoreKind.Rapid: fireIntervalMultiplier = baseFireInterval / (1f + 0.15f * stacks); break;
                 case CoreKind.Wingman: coreWingmen = true; break;

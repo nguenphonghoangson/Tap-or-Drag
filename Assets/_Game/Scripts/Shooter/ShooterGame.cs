@@ -19,11 +19,11 @@ namespace TapOrDrag
     /// </summary>
     public partial class ShooterGame : MonoBehaviour
     {
-        enum EnemyKind { Drone, Saucer, Diver, Rock, Boss }
+        enum EnemyKind { Drone, Saucer, Diver, Rock, Boss, Mama, Kitten, Cage }
         enum BossKind { Mothership, LaserCat, YarnKing }
-        enum PickupKind { Bone, Power, Heart, Magnet, Shield, Wingman, Rapid, Bomb, WeaponHoming, WeaponPlasma, WeaponWave }
-        enum Weapon { Blaster, Homing, Plasma, Wave }
-        enum ShotKind { Pellet, Missile, Plasma, Wave, Enemy }
+        enum PickupKind { Bone, Power, Heart, Magnet, Shield, Wingman, Rapid, Bomb, WeaponHoming, WeaponPlasma, WeaponWave, WeaponLightning, WeaponBoomerang, Puppy }
+        enum Weapon { Blaster, Homing, Plasma, Wave, Lightning, Boomerang }
+        enum ShotKind { Pellet, Missile, Plasma, Wave, Enemy, Charge, Lightning, Boomerang }
 
         // Buff bits for the HUD icon row.
         public const int BuffMagnet = 1, BuffRapid = 2, BuffWingmen = 4, BuffShield = 8, BuffGold = 16, BuffWarp = 32, BuffIce = 64;
@@ -35,7 +35,7 @@ namespace TapOrDrag
             public Vector2 P, V;
             public float Damage, T, BaseX, Phase;
             public Enemy LastHit;
-            public bool Alive;
+            public bool Alive, Grazed;
         }
 
         sealed class Enemy
@@ -66,6 +66,7 @@ namespace TapOrDrag
         }
 
         const float StrikeWarn = 0.8f, StrikeBeam = 0.5f, StrikeHalfWidth = 0.35f;
+        const float GrazeRadius = 0.65f; // near-miss ring around the hitbox that awards graze points
 
         public event Action<int, int> Finished;  // score, bones collected
         public event Action BoneCollected, EnemyKilled;
@@ -95,8 +96,8 @@ namespace TapOrDrag
         // Run state
         Vector2 shipPos, lastPointer;
         bool dragging, dying, luckyBone;
-        int pointerId = -1, hearts, maxHearts, power, score, bones, combo, multiplier, bossesDefeated, shotCount, boneChain, bombs, shieldHits, buffMask = -1;
-        float comboTimer, fireTimer, invulnerable, time, spawnTimer, bossTimer, endTimer, velocityX, hitSoundCooldown, boneChainTimer;
+        int pointerId = -1, hearts, maxHearts, power, score, bones, combo, multiplier, bossesDefeated, shotCount, boneChain, bombs, shieldHits, buffMask = -1, grazeCount;
+        float comboTimer, fireTimer, invulnerable, time, spawnTimer, bossTimer, endTimer, velocityX, hitSoundCooldown, boneChainTimer, chargeTimer;
         float magnetTimer, rapidTimer, wingmanTimer, wingmanFire, iceTimer, goldTimer, warpTimer, laserTimer, shockTimer;
         float damageMultiplier, fireIntervalMultiplier, magnetRange, killsForSkill, skillCharge;
         Weapon weapon;
@@ -182,12 +183,12 @@ namespace TapOrDrag
             skillCharge = 0f;
             weapon = Weapon.Blaster;
             power = 1;
-            score = bones = combo = bossesDefeated = shotCount = 0;
+            score = bones = combo = bossesDefeated = shotCount = grazeCount = 0;
             multiplier = 1;
             time = 0f;
             spawnTimer = 1.5f;
             bossTimer = cfg.shooterBossEvery;
-            invulnerable = 0f;
+            invulnerable = chargeTimer = 0f;
             magnetTimer = rapidTimer = wingmanTimer = iceTimer = goldTimer = warpTimer = laserTimer = shockTimer = 0f;
             dragging = false;
             boss = null;
@@ -227,7 +228,8 @@ namespace TapOrDrag
         }
 
         int TotalBombs => bombs + Inventory.Count(ItemKind.Bomb);
-        string WeaponName => weapon == Weapon.Homing ? "HOMING" : weapon == Weapon.Plasma ? "PLASMA" : weapon == Weapon.Wave ? "WAVE" : "BLASTER";
+        string WeaponName => weapon == Weapon.Homing ? "HOMING" : weapon == Weapon.Plasma ? "PLASMA" : weapon == Weapon.Wave ? "WAVE"
+            : weapon == Weapon.Lightning ? "LIGHTNING" : weapon == Weapon.Boomerang ? "BOOMERANG" : "BLASTER";
 
         public void Tick(float dt)
         {
@@ -394,7 +396,8 @@ namespace TapOrDrag
         {
             fireTimer -= dt;
             if (fireTimer > 0f) return;
-            float weaponRate = weapon == Weapon.Homing ? 1.6f : weapon == Weapon.Plasma ? 1.8f : weapon == Weapon.Wave ? 1.2f : 1f;
+            float weaponRate = weapon == Weapon.Homing ? 1.6f : weapon == Weapon.Plasma ? 1.8f : weapon == Weapon.Wave ? 1.2f
+                : weapon == Weapon.Lightning ? 0.7f : weapon == Weapon.Boomerang ? 2.2f : 1f;
             fireTimer = cfg.shooterFireInterval * fireIntervalMultiplier * weaponRate * (rapidTimer > 0f ? 0.5f : 1f);
             var muzzle = shipPos + new Vector2(0f, 0.85f);
             float dmg = damageMultiplier;
@@ -421,6 +424,30 @@ namespace TapOrDrag
                         s.Phase = i * (Mathf.PI * 2f / waves); // phase offset per wave
                     }
                     break;
+                case Weapon.Lightning:
+                {
+                    // Chain lightning: fast bolt that pierces and chains between nearby enemies.
+                    int bolts = power >= 4 ? 3 : power >= 2 ? 2 : 1;
+                    for (int i = 0; i < bolts; i++)
+                    {
+                        float spread = (i - (bolts - 1) * 0.5f) * 12f;
+                        var s = Fire(ShotKind.Lightning, art.PlayerPellet, muzzle, spread, 18f, (1.2f + 0.2f * power) * dmg);
+                        s.R.color = Art.LightningColor;
+                    }
+                    break;
+                }
+                case Weapon.Boomerang:
+                {
+                    // Bone boomerang: arcs out and returns, hitting enemies twice.
+                    int count = power >= 3 ? 2 : 1;
+                    for (int i = 0; i < count; i++)
+                    {
+                        float angle = (i - (count - 1) * 0.5f) * 20f;
+                        var s = Fire(ShotKind.Boomerang, art.BoomerangShot, muzzle, angle, 10f, (2.5f + 0.5f * power) * dmg);
+                        s.BaseX = shipPos.x;
+                    }
+                    break;
+                }
                 default:
                     switch (power)
                     {
@@ -454,6 +481,7 @@ namespace TapOrDrag
             s.T = s.Phase = 0f;
             s.LastHit = null;
             s.R.transform.localRotation = Quaternion.Euler(0f, 0f, -angleDegrees);
+            s.R.transform.localScale = Vector3.one;
             Place(s.R, s.P);
             return s;
         }
@@ -463,6 +491,7 @@ namespace TapOrDrag
             var s = GetShot(enemyShots, 9);
             s.Kind = ShotKind.Enemy;
             s.R.sprite = art.EnemyOrb;
+            s.Grazed = false;
             s.P = from;
             s.V = direction.normalized * speed;
             Place(s.R, s.P);
@@ -638,17 +667,20 @@ namespace TapOrDrag
                 return;
             }
             float roll = Random.value;
-            if (roll < 0.35f)
+            if (roll < 0.30f)
             {
                 if (Random.value < 0.5f) SpawnDroneLine(5, top);
                 else SpawnDroneV(top);
             }
-            else if (roll < 0.6f) SpawnEnemy(EnemyKind.Saucer, new Vector2(Random.Range(MinX + 0.6f, MaxX - 0.6f), top), 4f * hpScale);
-            else if (roll < 0.8f)
+            else if (roll < 0.50f) SpawnEnemy(EnemyKind.Saucer, new Vector2(Random.Range(MinX + 0.6f, MaxX - 0.6f), top), 4f * hpScale);
+            else if (roll < 0.68f)
             {
                 SpawnEnemy(EnemyKind.Diver, new Vector2(Random.Range(MinX, -0.5f), top), 2f * hpScale);
                 SpawnEnemy(EnemyKind.Diver, new Vector2(Random.Range(0.5f, MaxX), top + 0.8f), 2f * hpScale);
             }
+            else if (roll < 0.80f) SpawnEnemy(EnemyKind.Rock, new Vector2(Random.Range(MinX, MaxX), top), 5f * hpScale);
+            else if (roll < 0.90f && difficulty > 30f) SpawnEnemy(EnemyKind.Mama, new Vector2(Random.Range(MinX + 1f, MaxX - 1f), top), 8f * hpScale);
+            else if (roll < 0.96f && difficulty > 20f) SpawnEnemy(EnemyKind.Cage, new Vector2(Random.Range(MinX + 1f, MaxX - 1f), top), 3f);
             else SpawnEnemy(EnemyKind.Rock, new Vector2(Random.Range(MinX, MaxX), top), 5f * hpScale);
         }
 
@@ -700,6 +732,9 @@ namespace TapOrDrag
                 case EnemyKind.Saucer: e.R.sprite = art.CatSaucer; e.Radius = 0.55f; e.Score = 40; e.TargetY = World.Top - Random.Range(3.2f, 5.5f); break;
                 case EnemyKind.Diver: e.R.sprite = art.CatDiver; e.Radius = 0.42f; e.Score = 25; e.TargetY = World.Top - Random.Range(2.2f, 3.5f); break;
                 case EnemyKind.Rock: e.R.sprite = art.Meteor; e.Radius = 0.5f; e.Score = 30; break;
+                case EnemyKind.Mama: e.R.sprite = art.CatMama; e.Radius = 0.55f; e.Score = 60; e.R.transform.localScale = Vector3.one * 1.5f; e.TargetY = World.Top - Random.Range(3f, 4.5f); break;
+                case EnemyKind.Kitten: e.R.sprite = art.Kitten; e.Radius = 0.28f; e.Score = 15; break;
+                case EnemyKind.Cage: e.R.sprite = art.PuppyCage; e.Radius = 0.45f; e.Score = 0; e.R.transform.localScale = Vector3.one * 1.4f; break;
             }
             Place(e.R, e.P);
             return e;
@@ -771,6 +806,20 @@ namespace TapOrDrag
                         s.P.y += s.V.y * dt;
                         s.P.x = s.BaseX + Mathf.Sin(s.T * 11f + s.Phase) * 0.9f * Mathf.Min(1f, s.T * 4f);
                         break;
+                    case ShotKind.Lightning:
+                        // Fast bolt that jitters horizontally for a chain-lightning look.
+                        s.P += s.V * dt;
+                        s.R.transform.localPosition = new Vector3(s.P.x + Mathf.Sin(s.T * 80f) * 0.12f, s.P.y, 0f);
+                        s.R.color = ((int)(s.T * 60f) & 1) == 0 ? Art.LightningColor : Pal.White;
+                        break;
+                    case ShotKind.Boomerang:
+                        // Arc out for ~0.55s then reverse and come back; spin while flying.
+                        s.P += s.V * dt;
+                        if (s.T > 0.55f)
+                            s.V = Vector2.MoveTowards(s.V, Vector2.down * 10f, 35f * dt);
+                        s.R.transform.localRotation = Quaternion.Euler(0f, 0f, s.T * 720f);
+                        s.R.transform.localScale = Vector3.one * 1.3f;
+                        break;
                     default:
                         s.P += s.V * dt;
                         break;
@@ -830,6 +879,42 @@ namespace TapOrDrag
                     case EnemyKind.Rock:
                         e.P += new Vector2(Mathf.Sin(e.BaseX * 7f) * 0.5f, -2f) * dt;
                         e.R.transform.localRotation = Quaternion.Euler(0f, 0f, e.T * 90f);
+                        break;
+                    case EnemyKind.Mama:
+                        // Mama cat: hovers, fires aimed shots, spawns a pair of kittens periodically.
+                        if (e.P.y > e.TargetY) e.P.y = Mathf.MoveTowards(e.P.y, e.TargetY, 2.5f * dt);
+                        e.P.x = Mathf.Clamp(e.BaseX + Mathf.Sin(e.T * 0.9f) * 2.5f, MinX, MaxX);
+                        if (!dying && (e.FireT -= dt) <= 0f)
+                        {
+                            e.FireT = 1.8f;
+                            EnemyFire(e.P + Vector2.down * 0.5f, shipPos - e.P, cfg.shooterEnemyBulletSpeed * 0.9f);
+                        }
+                        if (!dying && (e.AltT -= dt) <= 0f)
+                        {
+                            e.AltT = 5f;
+                            SpawnEnemy(EnemyKind.Kitten, e.P + new Vector2(-0.5f, -0.3f), 1f);
+                            SpawnEnemy(EnemyKind.Kitten, e.P + new Vector2(0.5f, -0.3f), 1f);
+                        }
+                        break;
+                    case EnemyKind.Kitten:
+                        // Kittens: fast and erratic, swoop toward the player.
+                        if (!e.Diving)
+                        {
+                            e.P.y -= 3f * dt;
+                            e.P.x += Mathf.Sin(e.T * 8f) * 3f * dt;
+                            if (e.T > 0.6f)
+                            {
+                                e.Diving = true;
+                                e.DiveVelocity = (shipPos - e.P).normalized * 7f;
+                            }
+                        }
+                        else e.P += e.DiveVelocity * dt;
+                        e.R.transform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(e.T * 12f) * 15f);
+                        break;
+                    case EnemyKind.Cage:
+                        // Cage drifts down slowly; shooting it open frees a puppy.
+                        e.P.y -= 0.8f * dt;
+                        e.P.x = e.BaseX + Mathf.Sin(e.T * 2f) * 0.3f;
                         break;
                     case EnemyKind.Boss:
                         TickBoss(e, dt);
@@ -1036,10 +1121,12 @@ namespace TapOrDrag
                 foreach (var e in enemies)
                 {
                     if (!e.Alive || e == s.LastHit) continue;
-                    float rr = e.Radius + (s.Kind == ShotKind.Plasma ? 0.28f : 0.1f);
+                    float rr = e.Radius + (s.Kind == ShotKind.Charge ? 0.6f : s.Kind == ShotKind.Plasma ? 0.28f
+                        : s.Kind == ShotKind.Lightning ? 0.35f : s.Kind == ShotKind.Boomerang ? 0.25f : 0.1f);
                     if ((s.P - e.P).sqrMagnitude > rr * rr) continue;
                     Damage(e, s.Damage);
-                    if (s.Kind == ShotKind.Plasma) s.LastHit = e; // pierces: keeps flying, hits each enemy once
+                    if (s.Kind == ShotKind.Plasma || s.Kind == ShotKind.Charge || s.Kind == ShotKind.Lightning || s.Kind == ShotKind.Boomerang)
+                        s.LastHit = e; // pierces: keeps flying, hits each enemy once
                     else Kill(s);
                     break;
                 }
@@ -1049,17 +1136,18 @@ namespace TapOrDrag
             foreach (var s in enemyShots)
             {
                 if (!s.Alive) continue;
-                float rr = hit + 0.12f;
-                if ((s.P - shipPos).sqrMagnitude < rr * rr)
+                float rr = hit + 0.12f, d2 = (s.P - shipPos).sqrMagnitude;
+                if (d2 < rr * rr)
                 {
                     Kill(s);
                     PlayerHit();
                 }
+                else if (!s.Grazed && d2 < GrazeRadius * GrazeRadius) Graze(s);
             }
 
             foreach (var e in enemies)
             {
-                if (!e.Alive) continue;
+                if (!e.Alive || e.Kind == EnemyKind.Cage) continue; // cages are harmless
                 float rr = e.Radius + hit + 0.15f;
                 if ((e.P - shipPos).sqrMagnitude < rr * rr)
                 {
@@ -1135,9 +1223,19 @@ namespace TapOrDrag
 
             AddSkillCharge(1f);
             fx.Burst(e.P, Pal.Orange, Pal.Gold, 16, 6f, 0f, false, 0.45f);
-            fx.Float("+" + points, Pal.White, e.P + Vector2.up * 0.4f, 1f);
             sound.Explode();
-            int boneDrops = e.Kind == EnemyKind.Rock ? Random.Range(3, 6) : e.Kind == EnemyKind.Saucer ? Random.Range(2, 4) : Random.Range(0, 2);
+
+            // Cage: freeing a puppy! Drop the puppy pickup and skip normal loot.
+            if (e.Kind == EnemyKind.Cage)
+            {
+                Drop(PickupKind.Puppy, e.P);
+                fx.PerfectRing(e.P, Pal.Gold);
+                fx.Float("RESCUED!", Pal.Gold, e.P + Vector2.up * 0.4f, 1.4f);
+                return;
+            }
+
+            fx.Float("+" + points, Pal.White, e.P + Vector2.up * 0.4f, 1f);
+            int boneDrops = e.Kind == EnemyKind.Rock ? Random.Range(3, 6) : e.Kind == EnemyKind.Saucer || e.Kind == EnemyKind.Mama ? Random.Range(2, 4) : Random.Range(0, 2);
             for (int i = 0; i < boneDrops; i++) Drop(PickupKind.Bone, e.P + Random.insideUnitCircle * 0.4f);
 
             float roll = Random.value;
@@ -1154,7 +1252,8 @@ namespace TapOrDrag
         static PickupKind RandomWeaponCapsule()
         {
             float r = Random.value;
-            return r < 0.34f ? PickupKind.WeaponHoming : r < 0.67f ? PickupKind.WeaponPlasma : PickupKind.WeaponWave;
+            return r < 0.2f ? PickupKind.WeaponHoming : r < 0.4f ? PickupKind.WeaponPlasma : r < 0.6f ? PickupKind.WeaponWave
+                : r < 0.8f ? PickupKind.WeaponLightning : PickupKind.WeaponBoomerang;
         }
 
         static PickupKind RandomSupport()
@@ -1183,6 +1282,10 @@ namespace TapOrDrag
                 case PickupKind.Bomb: return art.IconBomb;
                 case PickupKind.WeaponHoming: return art.CapsuleHoming;
                 case PickupKind.WeaponPlasma: return art.CapsulePlasma;
+                case PickupKind.WeaponWave: return art.CapsuleWave;
+                case PickupKind.WeaponLightning: return art.CapsuleLightning;
+                case PickupKind.WeaponBoomerang: return art.CapsuleBoomerang;
+                case PickupKind.Puppy: return art.Puppy;
                 default: return art.CapsuleWave;
             }
         }
@@ -1261,11 +1364,29 @@ namespace TapOrDrag
                 case PickupKind.WeaponHoming:
                 case PickupKind.WeaponPlasma:
                 case PickupKind.WeaponWave:
-                    weapon = kind == PickupKind.WeaponHoming ? Weapon.Homing : kind == PickupKind.WeaponPlasma ? Weapon.Plasma : Weapon.Wave;
+                case PickupKind.WeaponLightning:
+                case PickupKind.WeaponBoomerang:
+                    weapon = kind == PickupKind.WeaponHoming ? Weapon.Homing : kind == PickupKind.WeaponPlasma ? Weapon.Plasma
+                        : kind == PickupKind.WeaponWave ? Weapon.Wave : kind == PickupKind.WeaponLightning ? Weapon.Lightning : Weapon.Boomerang;
                     hud.SetWeapon(WeaponName, power);
-                    Color32 c = kind == PickupKind.WeaponHoming ? Art.HomingColor : kind == PickupKind.WeaponPlasma ? Art.PlasmaColor : Art.WaveColor;
+                    Color32 c = kind == PickupKind.WeaponHoming ? Art.HomingColor : kind == PickupKind.WeaponPlasma ? Art.PlasmaColor
+                        : kind == PickupKind.WeaponWave ? Art.WaveColor : kind == PickupKind.WeaponLightning ? Art.LightningColor : Art.BoomerangColor;
                     Announce(WeaponName + "!", c, at);
                     fx.PerfectRing(at, c);
+                    break;
+                case PickupKind.Puppy:
+                    // Rescue a puppy: big score bonus, heal one heart, and bonus bones.
+                    int rescue = 500 * multiplier;
+                    score += rescue;
+                    hud.SetScore(score, multiplier, false);
+                    hearts = Mathf.Min(maxHearts, hearts + 1);
+                    hud.SetHearts(hearts, maxHearts);
+                    for (int i = 0; i < 10; i++) { bones++; BoneCollected?.Invoke(); }
+                    fx.Burst(at, Pal.Gold, Pal.White, 20, 5f, 0f, false, 0.5f);
+                    fx.PerfectRing(at, Pal.Gold);
+                    fx.Float("+" + rescue, Pal.Gold, at + Vector2.up * 0.5f, 1.6f);
+                    hud.Toast("PUPPY SAVED!", Pal.Gold);
+                    sound.SkillReady();
                     break;
             }
             UpdateBuffIcons();
@@ -1324,6 +1445,20 @@ namespace TapOrDrag
             sound.BigExplode();
             megaLaser.enabled = wingmanLeft.enabled = wingmanRight.enabled = false;
             shipR.enabled = flameR.enabled = bubbleR.enabled = false;
+        }
+
+        /// <summary>Near-miss: an enemy bullet just grazed the hitbox. Awards a small score bonus.</summary>
+        void Graze(Shot s)
+        {
+            s.Grazed = true;
+            grazeCount++;
+            int bonus = 5 * grazeCount * multiplier;
+            score += bonus;
+            hud.SetScore(score, multiplier, false);
+            AddSkillCharge(0.15f);
+            fx.Trail(shipPos, Art.PelletColor, 0f);
+            if (grazeCount % 5 == 0) fx.Float("GRAZE x" + grazeCount, Art.PelletColor, shipPos + Vector2.up * 0.5f, 0.9f);
+            sound.CloseCall();
         }
 
         // ---------------------------------------------------------------- background (vertical space scroll)

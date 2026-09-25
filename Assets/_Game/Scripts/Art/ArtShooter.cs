@@ -6,7 +6,7 @@ namespace TapOrDrag
     /// <summary>Sprites for the DOG BLAST shooter mode: cat enemies (dogs vs cats), bullets, pickups and hearts.</summary>
     public sealed partial class Art
     {
-        public Sprite CatDrone, CatDiver, CatSaucer, CatBoss;
+        public Sprite CatDrone, CatDiver, CatSaucer, CatBoss, CatMama, Kitten, Puppy, PuppyCage;
         public Sprite PlayerPellet, EnemyOrb, PowerCapsule, HeartPickup;
         public Sprite IconHeart, IconHeartEmpty;
         public Sprite IconPaw, IconBomb, IconMagnet, IconRapid, IconWingman, IconShieldItem, IconLucky, IconWarp, IconGold, ShipLaser;
@@ -32,6 +32,9 @@ namespace TapOrDrag
         {
             CatDrone = MakeCatDrone(Pal.Hex("8f94b0"), Pal.Hex("c9cde0"));
             CatDiver = MakeCatDrone(Pal.Hex("e0605a"), Pal.Hex("ff9a8f"));
+            CatMama = MakeCatDrone(Pal.Hex("c98a4a"), Pal.Hex("e8b27a"));
+            Kitten = MakeCatDrone(Pal.Hex("f2c38b"), Pal.Hex("fff1d6"));
+            BuildPuppyArt();
             CatSaucer = MakeCatSaucer(Pal.Hex("8f94b0"), Pal.Hex("ff6fb5"), Pal.Hex("c23f86"));
             CatBoss = MakeCatSaucer(Pal.Hex("3b3552"), Pal.Hex("7a3dcc"), Pal.Hex("4a2290"));
 
@@ -101,6 +104,36 @@ namespace TapOrDrag
                 laser.Set(x, 6, Pal.Alpha(PelletColor, 80));
             }
             ShipLaser = laser.ToSprite(Center);
+        }
+
+        // Rescue pickups: a floppy-eared puppy, and the same puppy behind cage bars (shot open to free it).
+        static readonly string[] PuppyFace = { "ee.....ee", "efffffffe", "efEfffEfe", ".fFFnFFf.", "..FFtFF..", "...fff..." };
+
+        void BuildPuppyArt()
+        {
+            var pal = new Dictionary<char, Color32>
+            {
+                { 'e', Pal.Hex("8a5a2e") }, { 'f', Pal.Hex("f0c080") }, { 'F', Pal.Hex("fff1d6") },
+                { 'E', Pal.Ink }, { 'n', Pal.Ink }, { 't', Pal.Hex("ff6f91") },
+            };
+            Puppy = OutlinedPalette(PuppyFace, pal);
+
+            const int w = 15, h = 15;
+            var cage = new PixelCanvas(w, h);
+            cage.Stamp(PuppyFace, pal, 3, 6);
+            Color32 bar = Pal.Hex("b8c0d8"), frame = Pal.Hex("5d6378");
+            cage.Set(7, 0, frame);
+            cage.Set(6, 1, frame);
+            cage.Set(8, 1, frame);
+            for (int x = 1; x < w - 1; x++)
+            {
+                cage.Set(x, 2, frame);
+                cage.Set(x, h - 2, frame);
+            }
+            for (int x = 1; x < w - 1; x += 3)
+                for (int y = 3; y < h - 2; y++) cage.Set(x, y, bar);
+            cage.Outline(Pal.Ink, false);
+            PuppyCage = cage.ToSprite(Center);
         }
 
         static Sprite OutlinedPalette(string[] map, Dictionary<char, Color32> pal)

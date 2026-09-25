@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace TapOrDrag
 {
-    public enum CoreKind { Power, Homing, Plasma, Wave, Damage, Rapid, Wingman, Magnet, Heart, ShieldRegen, Skill, Bomb, Lucky, Orbit }
+    public enum CoreKind { Power, Homing, Plasma, Wave, Lightning, Boomerang, Damage, Rapid, Wingman, Magnet, Heart, ShieldRegen, Skill, Bomb, Lucky, Orbit }
 
     /// <summary>
     /// CORE RUN (roguelike DOG BLAST): the cores offered between waves. Each run starts weak; the player picks
@@ -13,23 +13,25 @@ namespace TapOrDrag
     {
         public static readonly string[] Names =
         {
-            "POWER CORE", "HOMING CORE", "PLASMA CORE", "WAVE CORE", "FANG CORE", "RAPID CORE", "WINGMAN CORE",
+            "POWER CORE", "HOMING CORE", "PLASMA CORE", "WAVE CORE", "BOLT CORE", "BONE CORE", "FANG CORE", "RAPID CORE", "WINGMAN CORE",
             "MAGNET CORE", "HEART CORE", "SHIELD CORE", "SKILL CORE", "BOMB CORE", "LUCKY CORE", "ORBIT CORE",
         };
 
         public static readonly string[] Descriptions =
         {
-            "MORE BULLETS", "MISSILES SEEK CATS", "ORBS PIERCE CATS", "WIDE WAVE SHOTS", "+25% DAMAGE", "+15% FIRE RATE",
+            "MORE BULLETS", "MISSILES SEEK CATS", "ORBS PIERCE CATS", "WIDE WAVE SHOTS", "FAST CHAIN BOLTS", "BONE BOOMERANGS",
+            "+25% DAMAGE", "+15% FIRE RATE",
             "2 HELPER DRONES", "PULL ALL BONES", "+1 MAX HEART + HEAL", "SHIELD EVERY 20S", "+30% SKILL CHARGE",
             "+2 BOMBS", "+50% BONES", "+1 ORBITING ORB",
         };
 
         /// <summary>How many times each core can be taken in one run (weapons are swaps, bombs are unlimited).</summary>
-        public static readonly int[] MaxStacks = { 3, 1, 1, 1, 5, 5, 1, 1, 3, 1, 3, 99, 3, 3 };
+        public static readonly int[] MaxStacks = { 3, 1, 1, 1, 1, 1, 5, 5, 1, 1, 3, 1, 3, 99, 3, 3 };
 
         public static readonly Color32[] Colors =
         {
-            Pal.Orange, Art.HomingColor, Art.PlasmaColor, Art.WaveColor, Pal.Red, Pal.Gold, Art.PelletColor,
+            Pal.Orange, Art.HomingColor, Art.PlasmaColor, Art.WaveColor, Art.LightningColor, Art.BoomerangColor,
+            Pal.Red, Pal.Gold, Art.PelletColor,
             Pal.Red, Pal.Rose, Pal.Hex("3ff0ff"), Art.PortalMain, Pal.OrangeLight, Pal.Gold, Art.PlasmaColor,
         };
 
@@ -41,6 +43,8 @@ namespace TapOrDrag
                 case CoreKind.Homing: return art.CapsuleHoming;
                 case CoreKind.Plasma: return art.CapsulePlasma;
                 case CoreKind.Wave: return art.CapsuleWave;
+                case CoreKind.Lightning: return art.CapsuleLightning;
+                case CoreKind.Boomerang: return art.CapsuleBoomerang;
                 case CoreKind.Damage: return art.IconPaw;
                 case CoreKind.Rapid: return art.IconRapid;
                 case CoreKind.Wingman: return art.IconWingman;

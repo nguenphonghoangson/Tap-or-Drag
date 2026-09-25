@@ -6,7 +6,7 @@ namespace TapOrDrag
     /// <summary>DOG BLAST weapons (capsules and projectiles), extra bosses and a 1px sprite for world-space health bars.</summary>
     public sealed partial class Art
     {
-        public Sprite CapsuleHoming, CapsulePlasma, CapsuleWave;
+        public Sprite CapsuleHoming, CapsulePlasma, CapsuleWave, CapsuleLightning, CapsuleBoomerang;
         public Sprite Missile, PlasmaOrb, WaveShot;
         public Sprite LaserCatBoss, YarnKingBoss;
         public Sprite Pixel; // white 1x1, tinted and scaled for health bars and laser telegraphs
@@ -14,6 +14,8 @@ namespace TapOrDrag
         public static readonly Color32 HomingColor = Pal.Hex("7dff9a");
         public static readonly Color32 PlasmaColor = Pal.Hex("b58cff");
         public static readonly Color32 WaveColor = Pal.Hex("3ff0ff");
+        public static readonly Color32 LightningColor = Pal.Hex("ffe45c");
+        public static readonly Color32 BoomerangColor = Pal.Hex("ffb36b");
 
         void BuildWeaponArt()
         {
@@ -21,9 +23,6 @@ namespace TapOrDrag
             px.Set(0, 0, Pal.White);
             Pixel = px.ToSprite(Center);
 
-            CapsuleHoming = Capsule(new[] { "KcWccWcccK", "KcWccWcccK", "KcWWWWcccK", "KcWccWcccK", "KcWccWcccK" }, HomingColor, Pal.Hex("2fb487"));
-            CapsulePlasma = Capsule(new[] { "KcWcccWccK", "KccWcWcccK", "KcccWccccK", "KccWcWcccK", "KcWcccWccK" }, PlasmaColor, Pal.Hex("6a3dcc"));
-            CapsuleWave = Capsule(new[] { "KWcccccWcK", "KWcccccWcK", "KWccWccWcK", "KWcWcWcWcK", "KcWcccWccK" }, WaveColor, Pal.Hex("1f7dff"));
 
             Missile = PixelCanvas.FromMap(new[] { ".W.", "GWG", "GGG", "GGG", "G.G", ".o." },
                 new Dictionary<char, Color32> { { 'W', Pal.White }, { 'G', HomingColor }, { 'o', Pal.Orange } }).ToSprite(Center);
@@ -42,16 +41,6 @@ namespace TapOrDrag
 
             LaserCatBoss = BuildLaserCat();
             YarnKingBoss = BuildYarnKing();
-        }
-
-        static Sprite Capsule(string[] letterRows, Color32 main, Color32 dark)
-        {
-            var rows = new List<string> { ".KKKKKKKK.", "KccccccccK" };
-            rows.AddRange(letterRows);
-            rows.Add("KddddddddK");
-            rows.Add(".KKKKKKKK.");
-            var pal = new Dictionary<char, Color32> { { 'K', Pal.Ink }, { 'c', main }, { 'd', dark }, { 'W', Pal.White } };
-            return PixelCanvas.FromMap(rows.ToArray(), pal).ToSprite(Center);
         }
 
         static Sprite BuildLaserCat()

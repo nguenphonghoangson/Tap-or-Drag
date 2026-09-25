@@ -163,6 +163,7 @@ PlayerSettings:
   androidSupportedAspectRatio: 1
   androidMaxAspectRatio: 2.1
   applicationIdentifier:
+    Standalone: com.DefaultCompany.Tap-Or-Drag
     iPhone: com.DefaultCompany.Tap-Or-Drag
   buildNumber:
     Standalone: 0
