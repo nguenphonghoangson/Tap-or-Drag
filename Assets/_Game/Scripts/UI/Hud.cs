@@ -375,12 +375,17 @@ namespace TapOrDrag
             SetBuyButton(!owned, price, affordable);
         }
 
-        /// <summary>Keep the UI frame on the 405x820 play field even when the screen is wider (e.g. landscape Game view).</summary>
+        /// <summary>
+        /// Keep the UI frame on the 405x820 play field even when the screen is wider (e.g. landscape Game view),
+        /// and inside the device safe area (notch / Dynamic Island / home indicator).
+        /// </summary>
         void FitFrame()
         {
             float half = World.ViewWidth * 0.5f / (World.CamHalfWidth * 2f);
-            frame.anchorMin = new Vector2(0.5f - half, 0f);
-            frame.anchorMax = new Vector2(0.5f + half, 1f);
+            Rect safe = Screen.safeArea;
+            float w = Mathf.Max(1, Screen.width), h = Mathf.Max(1, Screen.height);
+            frame.anchorMin = new Vector2(Mathf.Max(0.5f - half, safe.xMin / w), Mathf.Clamp01(safe.yMin / h));
+            frame.anchorMax = new Vector2(Mathf.Min(0.5f + half, safe.xMax / w), Mathf.Clamp01(safe.yMax / h));
             frame.offsetMin = frame.offsetMax = Vector2.zero;
         }
 

@@ -37,6 +37,8 @@ namespace TapOrDrag
             Stretch(hangarRoot);
             var dim = NewImage(hangarRoot, "Dim", null, 1f, Mid, Mid, Vector2.zero);
             Stretch(dim.rectTransform);
+            dim.rectTransform.offsetMin = new Vector2(-1000f, -1000f); // also cover the notch and home-indicator strips
+            dim.rectTransform.offsetMax = new Vector2(1000f, 1000f);
             dim.color = new Color(0.05f, 0.03f, 0.1f, 0.94f);
             dim.raycastTarget = true; // swallow clicks meant for the title screen underneath
 
